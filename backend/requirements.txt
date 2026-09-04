@@ -1,0 +1,10 @@
+# Pinned below 5.3: Django 6.0+ raises the minimum supported MySQL version
+# to 8.4, which most local/XAMPP/WAMP MySQL installs (still commonly 8.0.x)
+# do not meet. 5.1/5.2 fully support MySQL 8.0.11+ and MariaDB 10.5+.
+Django>=5.0,<5.3
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.4
+django-filter>=24.2
+mysqlclient>=2.2
+python-dotenv>=1.0

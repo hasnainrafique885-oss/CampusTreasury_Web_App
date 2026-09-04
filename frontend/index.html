@@ -1,0 +1,2296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CampusTreasury</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Receipt Print Area — populated by printReceipt() -->
+<div id="rpa"></div>
+
+<!-- ════ LOGIN ════ -->
+<div id="loginPage">
+  <!-- LEFT PANEL (hidden on mobile) -->
+  <div class="lp-l">
+    <div class="lp-inner">
+      <div class="lp-brand">
+        <div class="lp-logo">
+          <img id="brand-logo-1" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%231a6636%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2268%22%20font-size%3D%2255%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%93%3C%2Ftext%3E%3C%2Fsvg%3E"
+               onerror="this.style.display='none';this.parentNode.innerHTML='🎓';"
+               alt="Superior">
+        </div>
+        <div>
+          <h1 id="brand-instName-1">Superior College</h1>
+          <p>CampusTreasury</p>
+        </div>
+      </div>
+      <h2>Welcome<br>Back! 👋</h2>
+      <p class="tagline">Fees · Salaries · Expenses · Reports · Students — all in one secure portal.</p>
+      <div class="lp-pills">
+        <div class="lp-pill">💳 Fees</div>
+        <div class="lp-pill">👤 Salaries</div>
+        <div class="lp-pill">📊 Reports</div>
+        <div class="lp-pill">📁 Expenses</div>
+        <div class="lp-pill">🎓 Students</div>
+        <div class="lp-pill">📅 Budget</div>
+      </div>
+      <div class="lp-stats">
+        <div class="lp-stat"><div class="n">350+</div><div class="t">Students</div></div>
+        <div class="lp-stat"><div class="n">45</div><div class="t">Employees</div></div>
+        <div class="lp-stat"><div class="n">10</div><div class="t">Modules</div></div>
+        <div class="lp-stat"><div class="n">2025</div><div class="t">Session</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="lp-r">
+    <div class="lp-form">
+      <!-- Logo shown ONLY on mobile -->
+      <div class="lp-form-logo">
+        <div class="lp-form-logo-ico">
+          <img id="brand-logo-2" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%231a6636%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2268%22%20font-size%3D%2255%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%93%3C%2Ftext%3E%3C%2Fsvg%3E"
+               onerror="this.style.display='none';this.parentNode.innerHTML='🎓';"
+               alt="Superior">
+        </div>
+        <div>
+          <h3 id="brand-instName-2">Superior College</h3>
+          <p>CampusTreasury</p>
+        </div>
+      </div>
+
+      <h2>Sign In</h2>
+      <p class="sub">Select your role and enter your credentials</p>
+
+      <!-- ROLE CARDS -->
+      <div class="role-sel">
+        <div class="role-card active" id="rc-admin" onclick="selectRole('admin')">
+          <span class="rc-ico">🛡️</span>
+          <div class="rc-lbl">Admin</div>
+        </div>
+        <div class="role-card" id="rc-accountant" onclick="selectRole('accountant')">
+          <span class="rc-ico">🧾</span>
+          <div class="rc-lbl">Accountant</div>
+        </div>
+        <div class="role-card" id="rc-viewer" onclick="selectRole('viewer')">
+          <span class="rc-ico">👁️</span>
+          <div class="rc-lbl">Viewer</div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC CREDENTIAL HINT -->
+      <div class="cred-pill" id="credHint">
+        💡 <span id="credText"><strong>admin</strong> / admin123</span>
+      </div>
+
+      <div class="login-err" id="loginErr">❌ Wrong credentials — please try again</div>
+      <div class="login-err" id="loginLockErr" style="display:none">🔒 Account locked after 5 failed attempts. Wait 30 seconds.</div>
+
+      <div class="fg"><label>User ID</label><input type="text" id="uid" value="admin" autocomplete="username"></div>
+      <div class="fg"><label>Password</label><input type="password" id="upass" value="admin123" autocomplete="current-password"></div>
+
+      <button class="btn-signin" onclick="doLogin()">Sign In →</button>
+      <p class="lp-foot" id="brand-foot">Superior College · 2024–25 Academic Year</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app">
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <div class="sb-ico" style="background:rgba(255,255,255,.15);overflow:hidden;">
+        <img id="brand-logo-3" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2220%22%20fill%3D%22%231a6636%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2268%22%20font-size%3D%2255%22%20text-anchor%3D%22middle%22%3E%F0%9F%8E%93%3C%2Ftext%3E%3C%2Fsvg%3E"
+             style="width:26px;height:26px;object-fit:contain;"
+             onerror="this.style.display='none';this.parentNode.innerHTML='🎓';" alt="S">
+      </div>
+      <div><h2 id="brand-instName-3">Superior College</h2><p>CampusTreasury</p></div>
+    </div>
+    <div class="sb-nav">
+      <span class="sb-sec">Main</span>
+      <div class="ni on" onclick="goTo('dashboard',this)"><span class="ni-ic">🏠</span><span class="ni-lb">Dashboard</span></div>
+      <div class="ni" onclick="goTo('students',this)"><span class="ni-ic">🎓</span><span class="ni-lb">Students</span><span class="ni-bd" id="nb-s" style="display:none">8</span></div>
+      <div class="ni" onclick="goTo('classes',this)"><span class="ni-ic">🏫</span><span class="ni-lb">Classes & Sections</span></div>
+      <div class="ni" onclick="goTo('employees',this)"><span class="ni-ic">👤</span><span class="ni-lb">Employees</span><span class="ni-bd" id="nb-e" style="display:none">5</span></div>
+      <span class="sb-sec">Finance</span>
+      <div class="ni" onclick="goTo('fees',this)"><span class="ni-ic">💳</span><span class="ni-lb">Fee Management</span></div>
+      <div class="ni" onclick="goTo('transportFee',this)"><span class="ni-ic">🚌</span><span class="ni-lb">Transport Fee</span></div>
+      <div class="ni" onclick="goTo('fines',this)"><span class="ni-ic">🚨</span><span class="ni-lb">Disciplinary Fines</span><span class="ni-bd" id="nb-f" style="display:none">0</span></div>
+      <div class="ni" onclick="goTo('salaries',this)"><span class="ni-ic">💰</span><span class="ni-lb">Salaries</span></div>
+      <div class="ni" onclick="goTo('expenses',this)"><span class="ni-ic">📁</span><span class="ni-lb">Expenses</span></div>
+      <div class="ni" onclick="goTo('budget',this)"><span class="ni-ic">📅</span><span class="ni-lb">Budget Planner</span></div>
+      <span class="sb-sec">Analytics</span>
+      <div class="ni" onclick="goTo('reports',this)"><span class="ni-ic">📊</span><span class="ni-lb">Reports</span></div>
+      <div class="ni" onclick="goTo('transactions',this)"><span class="ni-ic">🔄</span><span class="ni-lb">Transactions</span><span class="ni-bd" id="nb-t" style="display:none">0</span></div>
+      <span class="sb-sec">System</span>
+      <div class="ni" onclick="goTo('settings',this)"><span class="ni-ic">⚙️</span><span class="ni-lb">Settings</span></div>
+      <div class="ni" id="nav-users" onclick="goTo('users',this)"><span class="ni-ic">👥</span><span class="ni-lb">Users</span></div>
+      <div class="ni" onclick="goTo('auditlog',this)"><span class="ni-ic">📋</span><span class="ni-lb">Audit Log</span></div>
+    </div>
+    <div class="sb-foot">
+      <div class="sb-user">
+        <div class="sb-av" id="sb-av-init">A</div>
+        <div class="sb-ui">
+          <h4 id="sb-username">Admin</h4>
+          <p id="sb-userrole">Super Admin</p>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px;">
+        <button class="btn btn-outline" style="font-size:10px;padding:4px 9px;color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.15);flex:1;" onclick="showMo('chgPass')">🔑 Password</button>
+      </div>
+    </div>
+  </nav>
+  <div class="sb-ov" id="sbOv" onclick="closeSB()"></div>
+
+  <div class="mw">
+    <div class="topbar">
+      <button class="tb-ham" onclick="openSB()">☰</button>
+      <span class="tb-ttl" id="pgTitle">Dashboard</span>
+      <div class="tb-r">
+        <button class="btn btn-outline hide-sm" onclick="showMo('quickAdd')">⚡ Quick Add</button>
+        <div class="nb-wrap">
+          <button class="nb-btn" onclick="toggleNotifPanel(event)">🔔<span class="nb-badge" id="nb-badge" style="display:none">0</span></button>
+          <div class="notif-panel" id="notif-panel">
+            <div class="notif-h">🔔 Notifications</div>
+            <div id="notif-list"></div>
+          </div>
+        </div>
+        <div class="u-chip"><div class="av av0" style="width:24px;height:24px;font-size:10px" id="tb-av">A</div><span id="tb-username">Admin</span><span id="tb-rolebadge" class="role-badge role-admin" style="font-size:9px;padding:2px 6px;margin-left:2px">Admin</span></div>
+        <button class="btn btn-outline" onclick="doLogout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="pc">
+
+      <!-- ══ DASHBOARD ══ -->
+      <div id="pg-dashboard" class="ps on">
+        <!-- Header with live clock -->
+        <div class="ph" style="align-items:center;">
+          <div class="ph-txt">
+            <h2>Dashboard</h2>
+            <p>Academic Year <span id="db-academic-year">2024–25</span> Overview &nbsp;·&nbsp; <span id="db-clock" style="color:var(--g6);font-weight:600"></span></p>
+          </div>
+          <div class="ph-acts">
+            <div style="display:flex;align-items:center;gap:6px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:6px 12px;">
+              <span style="font-size:11px;font-weight:700;color:var(--g7)">View:</span>
+              <button id="db-tog-month" class="btn btn-green" style="padding:4px 12px;font-size:11px" onclick="dbToggle('monthly')">Monthly</button>
+              <button id="db-tog-year" class="btn btn-outline" style="padding:4px 12px;font-size:11px" onclick="dbToggle('yearly')">Yearly</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="cards c4" style="margin-bottom:14px">
+          <div class="sc">
+            <div class="sc-ico ig">🎓</div>
+            <div class="sc-val" id="db-s">—</div>
+            <div class="sc-lbl">Total Students</div>
+            <div class="sc-ch up" id="db-s-sub">↑ Live count</div>
+          </div>
+          <div class="sc">
+            <div class="sc-ico ib">👤</div>
+            <div class="sc-val" id="db-e">—</div>
+            <div class="sc-lbl">Total Employees</div>
+            <div class="sc-ch up">↑ Active staff</div>
+          </div>
+          <div class="sc">
+            <div class="sc-ico io">Rs</div>
+            <div class="sc-val" id="db-f">—</div>
+            <div class="sc-lbl">This Month Collected</div>
+            <div class="sc-ch up" id="db-f-sub">↑ Auto calculated</div>
+          </div>
+          <div class="sc">
+            <div class="sc-ico ir">⏳</div>
+            <div class="sc-val" id="db-pending-week">—</div>
+            <div class="sc-lbl">Pending This Week</div>
+            <div class="sc-ch dn" id="db-pw-sub">Requires attention</div>
+          </div>
+        </div>
+
+        <!-- Fee Collection Progress + Overdue Alerts row -->
+        <div class="g2" style="margin-bottom:14px">
+          <!-- Fee Collection Progress -->
+          <div class="card" style="margin-bottom:0">
+            <div class="card-h">
+              <span class="card-t">🎯 Fee Collection Progress</span>
+              <span class="badge bg-y" id="db-fee-pct-badge">0%</span>
+            </div>
+            <div style="margin-bottom:16px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                <span style="font-size:13px;font-weight:600;color:var(--s6)">Overall Target</span>
+                <span style="font-size:12px;color:var(--s4)" id="db-fee-prog-lbl">0 / 0</span>
+              </div>
+              <div class="pbar" style="height:12px;margin-bottom:10px"><div class="pbar-f" id="db-fee-pbar" style="width:0%;background:linear-gradient(90deg,var(--g6),var(--g4))"></div></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px">
+                <div style="text-align:center;background:var(--g0);border-radius:8px;padding:10px 6px">
+                  <div style="font-size:16px;font-weight:800;color:var(--g6)" id="db-pc-paid">0</div>
+                  <div style="font-size:10px;color:var(--s4);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Paid</div>
+                </div>
+                <div style="text-align:center;background:#fffbeb;border-radius:8px;padding:10px 6px">
+                  <div style="font-size:16px;font-weight:800;color:var(--yl)" id="db-pc-pend">0</div>
+                  <div style="font-size:10px;color:var(--s4);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Pending</div>
+                </div>
+                <div style="text-align:center;background:#fff1f1;border-radius:8px;padding:10px 6px">
+                  <div style="font-size:16px;font-weight:800;color:var(--rd)" id="db-pc-over">0</div>
+                  <div style="font-size:10px;color:var(--s4);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Overdue</div>
+                </div>
+              </div>
+              <!-- Per-program progress bars -->
+              <div style="margin-top:14px;border-top:1px solid var(--s2);padding-top:12px" id="db-prog-bars"></div>
+            </div>
+          </div>
+
+          <!-- Overdue Alerts -->
+          <div class="card" style="margin-bottom:0;display:flex;flex-direction:column">
+            <div class="card-h">
+              <span class="card-t">🚨 Overdue Alerts</span>
+              <span class="badge bg-r" id="db-overdue-cnt">0 Students</span>
+            </div>
+            <div id="db-overdue-list" style="max-height:220px;overflow-y:auto;flex:1"></div>
+            <div id="db-overdue-empty" style="display:none;text-align:center;padding:24px 0;color:var(--s4);font-size:13px">✅ No overdue fees!</div>
+            <div id="db-reminder-bar" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--s2)">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:var(--s5);font-weight:600" id="db-sel-count">0 selected</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button class="btn" style="background:#25D366;color:#fff;font-size:11px;padding:6px 12px;gap:5px" onclick="openReminderModal('whatsapp')">📱 WhatsApp</button>
+                  <button class="btn" style="background:#0088cc;color:#fff;font-size:11px;padding:6px 12px" onclick="openReminderModal('sms')">💬 SMS</button>
+                  <button class="btn btn-outline" style="font-size:11px;padding:6px 10px" onclick="selectAllOverdue()">☑ All</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ FEE REMINDER PANEL — full width ══ -->
+        <div class="card" id="db-reminder-panel" style="margin-bottom:14px;border-left:4px solid #25D366">
+          <div class="card-h" style="margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:9px;background:#e8faf0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📲</div>
+              <div>
+                <span class="card-t" style="display:block">Fee Reminder System</span>
+                <span style="font-size:11px;color:var(--s4)">Select students below and send bulk WhatsApp / SMS reminders</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <select class="fs" id="rem-filter-status" onchange="reminderFilterStatus(this.value)" style="font-size:12px;padding:6px 10px">
+                <option value="both">Pending + Overdue</option>
+                <option value="Overdue">Overdue Only</option>
+                <option value="Pending">Pending Only</option>
+              </select>
+              <button class="btn btn-outline" style="font-size:11px;padding:6px 12px" onclick="reminderSelectAll(true)">☑ Select All</button>
+              <button class="btn btn-outline" style="font-size:11px;padding:6px 12px" onclick="reminderSelectAll(false)">☐ Deselect</button>
+            </div>
+          </div>
+
+          <div class="tsw" style="margin-bottom:14px">
+            <table class="dt" style="min-width:560px">
+              <thead>
+                <tr>
+                  <th style="width:36px"><input type="checkbox" id="rem-chk-all" onchange="reminderSelectAll(this.checked)" style="cursor:pointer"></th>
+                  <th>Student</th>
+                  <th>Roll No</th>
+                  <th>Program</th>
+                  <th>Contact</th>
+                  <th>Amount Due</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="rem-student-tb"></tbody>
+            </table>
+          </div>
+
+          <!-- Template selector + Send bar -->
+          <div style="background:var(--s0);border:1px solid var(--s2);border-radius:var(--rads);padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+              <span style="font-size:12px;font-weight:700;color:var(--s6)">📝 Message Template</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="setReminderTemplate('urdu')">Urdu</button>
+                <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="setReminderTemplate('english')">English</button>
+                <button class="btn btn-outline" style="font-size:11px;padding:5px 10px" onclick="setReminderTemplate('formal')">Formal</button>
+              </div>
+            </div>
+            <textarea id="rem-template" rows="4" style="width:100%;border:1.5px solid var(--s2);border-radius:var(--rads);padding:10px 13px;font-size:13px;color:var(--s6);font-family:inherit;resize:vertical;background:#fff;outline:none"></textarea>
+            <div style="font-size:11px;color:var(--s4);margin-top:6px">Variables: <code>{name}</code> <code>{roll}</code> <code>{amount}</code> <code>{program}</code> <code>{status}</code></div>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;color:var(--s5)" id="rem-send-summary">0 students selected</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" style="background:#25D366;color:#fff;font-size:12px;padding:8px 18px" onclick="sendBulkReminder('whatsapp')">📱 Send via WhatsApp</button>
+                <button class="btn" style="background:#0088cc;color:#fff;font-size:12px;padding:8px 18px" onclick="sendBulkReminder('sms')">💬 Send via SMS</button>
+                <button class="btn btn-outline" style="font-size:12px;padding:8px 16px" onclick="printReminderList()">🖨️ Print List</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Send Log -->
+          <div id="rem-log" style="margin-top:12px;display:none">
+            <div style="font-size:11px;font-weight:700;color:var(--s4);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">📋 Send Log</div>
+            <div id="rem-log-list" style="max-height:150px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Pending Salary Alert -->
+        <div id="db-pending-sal-alert" style="margin-bottom:14px;display:none"></div>
+
+        <!-- Income vs Expenses Chart (toggle monthly/yearly) + Budget Pie -->
+        <div class="g21" style="margin-bottom:14px">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-h">
+              <span class="card-t" id="db-chart-title">📊 Income vs Expenses — Monthly</span>
+              <span class="card-a" onclick="goTo('reports',null)">Full Report →</span>
+            </div>
+            <div class="cw cwl"><canvas id="ch-ie"></canvas></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-h"><span class="card-t">🥧 Budget Split</span></div>
+            <div class="cw"><canvas id="ch-pie"></canvas></div>
+            <div style="margin-top:10px;border-top:1px solid var(--s1);padding-top:10px">
+              <div class="mr"><span class="mr-k">Total Income</span><span class="pos mr-v" id="db-bal-in">—</span></div>
+              <div class="mr"><span class="mr-k">Total Expenses</span><span class="neg mr-v" id="db-bal-ex">—</span></div>
+              <div class="mr" style="border-bottom:none"><span class="mr-k" style="font-weight:700">Net Balance</span><span class="mr-v" id="db-bal-net" style="font-size:15px">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Transactions + Upcoming Events -->
+        <div class="g2">
+          <div class="card"><div class="card-h"><span class="card-t">🔄 Recent Transactions</span><span class="card-a" onclick="goTo('transactions',null)">See All</span></div><div id="db-tx"></div></div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">📅 Upcoming Events</span></div>
+            <div id="db-events"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ STUDENTS ══ -->
+      <div id="pg-students" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Students</h2><p>Manage all enrolled students</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="showMo('exportStu')">📤 Export</button>
+            <button class="btn btn-outline" onclick="showMo('importStu')">📥 Import</button>
+            <button class="btn btn-blue" style="background:#dbeafe;color:#1d4ed8;border:none" onclick="goTo('classes',document.querySelector('.ni[onclick*=classes]'))">🏫 Classes</button>
+            <button class="btn btn-green" onclick="openAddStu()">+ Add Student</button>
+          </div>
+        </div>
+        <div class="cards c4">
+          <div class="sc"><div class="sc-ico ig">🎓</div><div class="sc-val" id="s-tot">—</div><div class="sc-lbl">Total Enrolled</div></div>
+          <div class="sc"><div class="sc-ico ib">👦</div><div class="sc-val" id="s-boys">—</div><div class="sc-lbl">Boys</div></div>
+          <div class="sc"><div class="sc-ico ip">👧</div><div class="sc-val" id="s-girls">—</div><div class="sc-lbl">Girls</div></div>
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="s-paid-count">—</div><div class="sc-lbl">Fee Paid Students</div></div>
+        </div>
+        <div class="cards c4" style="margin-top:-6px;margin-bottom:0">
+          <div class="sc"><div class="sc-ico io">⏳</div><div class="sc-val" id="s-fee-pending-count">—</div><div class="sc-lbl">Pending Students</div><div class="sc-ch" style="font-size:11px;font-weight:600;color:var(--yl)" id="s-fee-pending-amt-sub">Rs 0</div></div>
+          <div class="sc"><div class="sc-ico ir">🚨</div><div class="sc-val" id="s-overdue-count">—</div><div class="sc-lbl">Overdue Students</div></div>
+          <div class="sc"><div class="sc-ico ig">💰</div><div class="sc-val" id="s-fee-paid-amt">—</div><div class="sc-lbl">Fee Collected (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ir">💸</div><div class="sc-val" id="s-fee-unpaid-amt">—</div><div class="sc-lbl">Unpaid Amount (Rs)</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="Search name, ID, roll, father…" oninput="fS(this.value)">
+            <select class="fs" onchange="fSGn(this.value)">
+              <option value="">All (Boys + Girls)</option>
+              <option value="Male">Boys Only</option>
+              <option value="Female">Girls Only</option>
+            </select>
+            <select class="fs" onchange="fSSt(this.value)"><option value="">All Status</option><option>Paid</option><option>Pending</option><option value="Partial">Partially Paid</option><option>Overdue</option></select>
+            <select class="fs" id="filter-cls" onchange="fSCls(this.value)">
+              <option value="">All Classes</option>
+            </select>
+            <select class="fs" id="filter-sec" onchange="fSSec(this.value)">
+              <option value="">All Sections</option>
+            </select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Student ID</th><th>Student</th><th>Father</th><th>Roll No</th><th>Gender</th><th>Program/Sec</th><th>Dept</th><th>Year/Sem</th><th>Contact</th><th>Fee Status</th><th>Amount</th><th>Actions</th></tr></thead>
+              <tbody id="stuTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CLASSES & SECTIONS ══ -->
+      <div id="pg-classes" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Classes &amp; Sections</h2><p>Manage classes and sections — these appear in all student forms</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="openAddSection()">+ Add Section</button>
+            <button class="btn btn-green" onclick="openAddClass()">+ Add Class</button>
+          </div>
+        </div>
+        <div class="cards c4" id="cls-stats-row" style="margin-bottom:8px"></div>
+        <div class="card">
+          <div class="card-h" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <span class="card-t">📋 All Classes</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:12px;font-weight:600;color:var(--s4)">Campus:</label>
+              <select class="fs" id="cls-campus-filter" onchange="rClasses()" style="padding:6px 12px;font-size:12px;min-width:140px">
+                <option value="">All Campuses</option>
+                <option value="Boys">👦 Boys Campus</option>
+                <option value="Girls">👧 Girls Campus</option>
+              </select>
+            </div>
+          </div>
+          <div id="cls-table-wrap">
+            <table class="dt">
+              <colgroup>
+                <col style="width:16%"><col style="width:14%"><col style="width:34%">
+                <col style="width:12%"><col style="width:10%"><col style="width:auto">
+              </colgroup>
+              <thead><tr><th>Class Name</th><th>Code</th><th>Sections</th><th>Campus</th><th>Students</th><th>Actions</th></tr></thead>
+              <tbody id="clsTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ EMPLOYEES ══ -->
+      <div id="pg-employees" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Employees</h2><p>Faculty and staff management</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="showMo('exportEmp')">📤 Export</button>
+            <button class="btn" onclick="openLeaveDeductModal()" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5">📅 Leave Deduction</button>
+            <button class="btn btn-green" onclick="openAddEmp()">+ Add Employee</button>
+            <button class="btn" onclick="openManageDepts()" style="background:#ede9fe;color:#5b21b6;border-color:#c4b5fd">🏢 Departments</button>
+          </div>
+        </div>
+        <div class="cards c4">
+          <div class="sc"><div class="sc-ico ig">👤</div><div class="sc-val" id="e-tot">—</div><div class="sc-lbl">Total Employees</div></div>
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="e-act">—</div><div class="sc-lbl">Active</div></div>
+          <div class="sc"><div class="sc-ico ir">💰</div><div class="sc-val" id="e-pay">—</div><div class="sc-lbl">Monthly Payroll (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ib">🏫</div><div class="sc-val" id="e-dept">—</div><div class="sc-lbl">Departments</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍  Search name or designation…" oninput="fE(this.value)">
+            <select class="fs" onchange="fEDp(this.value)" id="empDeptFilter"><option value="">All Departments</option></select>
+            <select class="fs" onchange="fESt(this.value)"><option value="">All Status</option><option>Active</option><option>On Leave</option><option>Inactive</option></select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <colgroup>
+                <col style="width:9%"><col style="width:20%"><col style="width:12%"><col style="width:12%">
+                <col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:10%">
+                <col style="width:6%"><col style="width:auto">
+              </colgroup>
+              <thead><tr><th>Emp ID</th><th>Employee</th><th>Designation</th><th>Department</th><th>Basic (Rs)</th><th>Allowance (Rs)</th><th>Net Pay (Rs)</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="empTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ FEES ══ -->
+      <div id="pg-fees" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Fee Management</h2><p>Track and collect student fees</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="showMo('exportFee')">📤 Export</button>
+            <button class="btn btn-outline" onclick="sendReminders()">📨 Reminders</button>
+            <button class="btn btn-outline" onclick="openBulkFee()">📦 Bulk Assign Fee</button>
+            <button class="btn btn-green" onclick="openAddFee()">+ Record Payment</button>
+          </div>
+        </div>
+        <div class="cards c5">
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="f-c">—</div><div class="sc-lbl">Collected (Rs)</div></div>
+          <div class="sc"><div class="sc-ico io">⏳</div><div class="sc-val" id="f-p">—</div><div class="sc-lbl">Pending (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ir">❌</div><div class="sc-val" id="f-o">—</div><div class="sc-lbl">Overdue (Rs)</div></div>
+          <div class="sc" onclick="fFStPartial()" style="cursor:pointer" title="Show only the partially paid fees"><div class="sc-ico io">🟡</div><div class="sc-val" id="f-pp">—</div><div class="sc-lbl">Part-Paid Balance (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ib">📊</div><div class="sc-val" id="f-r">—</div><div class="sc-lbl">Collection Rate</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍  Search student or receipt…" oninput="fF(this.value)">
+            <select class="fs" id="fee-filter-status" onchange="fFSt(this.value)"><option value="">All Status</option><option>Paid</option><option value="Partial">🟡 Partial</option><option value="Partial-Overdue">🟠 Partial — Overdue</option><option value="_unpaid">Any Unpaid Balance</option><option>Pending</option><option>Overdue</option></select>
+            <select class="fs" onchange="fFMt(this.value)"><option value="">All Methods</option><option>Cash</option><option>Bank Transfer</option><option>Online</option><option>Cheque</option></select>
+            <select class="fs" onchange="fFGn(this.value)"><option value="">All Campus</option><option value="Male">👦 Boys Campus</option><option value="Female">👧 Girls Campus</option></select>
+            <select class="fs" id="fee-filter-cls" onchange="fFCls(this.value)"><option value="">All Classes</option></select>
+            <select class="fs" id="fee-filter-sec" onchange="fFSec(this.value)"><option value="">All Sections</option></select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Receipt</th><th>Student</th><th>Roll No</th><th>Gender</th><th>Semester</th><th>Amount (Rs)</th><th>Paid (Rs)</th><th>Balance (Rs)</th><th>Due Date</th><th>Paid Date</th><th>Method</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="feeTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DISCIPLINARY FINES ══ -->
+      <div id="pg-fines" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Disciplinary Fines</h2><p>Fines for rule violations — separate from late fee penalties</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-green" onclick="openAddFine()">+ Add Fine</button>
+          </div>
+        </div>
+        <div class="cards c4">
+          <div class="sc"><div class="sc-ico ib">🚨</div><div class="sc-val" id="fn-t">—</div><div class="sc-lbl">Total Fines (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="fn-p">—</div><div class="sc-lbl">Collected (Rs)</div></div>
+          <div class="sc"><div class="sc-ico io">⏳</div><div class="sc-val" id="fn-pd">—</div><div class="sc-lbl">Pending (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ir">🔢</div><div class="sc-val" id="fn-c">—</div><div class="sc-lbl">Fines Issued</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍  Search student or reason…" oninput="fnF(this.value)">
+            <select class="fs" onchange="fnFSt(this.value)"><option value="">All Status</option><option>Paid</option><option>Pending</option></select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Student</th><th>Roll No</th><th>Reason</th><th>Amount (Rs)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="fineTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ FEE CATEGORIES ══ -->
+      <div id="pg-transportFee" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Transport Fee</h2><p>Van/transport charges — only for students who actually use it, tracked separately from Tuition</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="openRouteMaster()">🚐 Route Master</button>
+            <button class="btn btn-outline" onclick="openTransportStatusManager()">🚦 Manage Status</button>
+            <button class="btn" onclick="remindTransportOverdue()" style="background:#dcfce7;color:#166534;border-color:#86efac">📱 Remind Overdue</button>
+            <button class="btn" onclick="openAutoGenTf()" style="background:#ede9fe;color:#5b21b6;border-color:#c4b5fd">⚡ Auto-Generate</button>
+            <button class="btn btn-green" onclick="openAddTransportFee()">+ Assign Transport Fee</button>
+          </div>
+        </div>
+        <div id="tf-doc-alert" style="display:none"></div>
+        <div class="cards c5">
+          <div class="sc"><div class="sc-ico ib">🚌</div><div class="sc-val" id="tf-total">—</div><div class="sc-lbl">Total Due (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="tf-paid">—</div><div class="sc-lbl">Collected (Rs)</div></div>
+          <div class="sc"><div class="sc-ico io">⏳</div><div class="sc-val" id="tf-pending">—</div><div class="sc-lbl">Pending (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ir">🧑‍🎓</div><div class="sc-val" id="tf-count">—</div><div class="sc-lbl">Students Using Transport</div></div>
+          <div class="sc"><div class="sc-ico ip">🚐</div><div class="sc-val" id="tf-fleet">—</div><div class="sc-lbl" id="tf-fleet-lbl">Fleet Seat Utilization</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍  Search student, roll no, or route…" oninput="tfF(this.value)">
+            <select class="fs" onchange="tfFSt(this.value)"><option value="">All Status</option><option>Paid</option><option value="Partial">Partially Paid</option><option>Pending</option><option>Overdue</option></select>
+            <select class="fs" onchange="tfFGn(this.value)"><option value="">All Campus</option><option value="Male">👦 Boys Campus</option><option value="Female">👧 Girls Campus</option></select>
+            <select class="fs" id="transport-filter-cls" onchange="tfFCls(this.value)"><option value="">All Classes</option></select>
+            <select class="fs" id="transport-filter-sec" onchange="tfFSec(this.value)"><option value="">All Sections</option></select>
+            <select class="fs" id="transport-filter-route" onchange="tfFRoute(this.value)"><option value="">All Routes</option></select>
+            <select class="fs" id="transport-filter-month" onchange="tfFMonth(this.value)"><option value="">All Months</option></select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Student</th><th>Roll No</th><th>Route</th><th>Amount (Rs)</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="tfTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SALARIES ══ -->
+      <div id="pg-salaries" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Salaries</h2><p>Employee salary disbursement</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="showMo('exportSal')">📤 Export</button>
+            <button class="btn" onclick="openProcessAllModal()" style="background:#fef3c7;color:#92400e;border-color:#fcd34d">✅ Bulk Process</button>
+            <button class="btn" onclick="openAutoGenSal()" style="background:#ede9fe;color:#5b21b6;border-color:#c4b5fd">⚡ Auto-Generate</button>
+            <button class="btn btn-green" onclick="openAddSal()">+ Process Salary</button>
+          </div>
+        </div>
+        <div class="cards c4" style="margin-bottom:12px">
+          <div class="sc"><div class="sc-ico ig">💰</div><div class="sc-val" id="sl-t">—</div><div class="sc-lbl">Total Payroll (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ig">✅</div><div class="sc-val" id="sl-p">—</div><div class="sc-lbl">Paid</div></div>
+          <div class="sc"><div class="sc-ico ir">⏳</div><div class="sc-val" id="sl-n">—</div><div class="sc-lbl">Pending</div></div>
+          <div class="sc"><div class="sc-ico ib">📈</div><div class="sc-val" id="sl-a">—</div><div class="sc-lbl">Avg Salary (Rs)</div></div>
+        </div>
+        <!-- Department-wise Payroll Panel -->
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h">
+            <span class="card-t">🏢 Department-wise Payroll</span>
+            <span style="font-size:11px;color:var(--s4)" id="sl-dept-month-lbl">All Records</span>
+          </div>
+          <div id="sl-dept-bars"></div>
+        </div>
+        <!-- Filter + Table -->
+        <div class="card">
+          <div class="frow">
+            <input class="fi" id="sal-search" placeholder="🔍  Search by name…" oninput="fSL(this.value)">
+            <select class="fs" onchange="fSLSt(this.value)"><option value="">All Status</option><option>Paid</option><option>Pending</option></select>
+            <select class="fs" id="salMonthFilter" onchange="fSLMonth(this.value)"><option value="">All Months</option></select>
+            <select class="fs" id="salDeptFilter" onchange="fSLDept(this.value)"><option value="">All Departments</option></select>
+          </div>
+          <div id="sal-filter-info" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--g0);border:1px solid var(--g1);border-radius:8px;font-size:12px;color:var(--g7)">
+            <span id="sal-filter-txt"></span>
+            <button onclick="clearSalFilters()" style="float:right;background:none;border:none;color:var(--g6);font-size:11px;font-weight:700;cursor:pointer">✕ Clear Filters</button>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Sal ID</th><th>Employee</th><th>Designation</th><th>Basic (Rs)</th><th>Allowances (Rs)</th><th>Deductions (Rs)</th><th>Net Pay (Rs)</th><th>Month</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="salTB"></tbody>
+            </table>
+          </div>
+          <div id="sal-empty" style="display:none;text-align:center;padding:32px 0;color:var(--s4);font-size:13px">
+            📭 No salary records found for this filter.
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ EXPENSES ══ -->
+      <div id="pg-expenses" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Expenses</h2><p>Track all institutional expenditures</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" onclick="showMo('exportExp')">📤 Export</button>
+            <button class="btn btn-green" onclick="_syncCatDropdowns();switchExpTab('exp');showMo('addExp')">+ Add Expense</button>
+          </div>
+        </div>
+
+        <!-- Budget vs Actual panel -->
+        <div class="card" id="ex-budget-panel" style="margin-bottom:16px">
+          <div class="card-h">
+            <span class="card-t">🎯 Budget vs Actual — Per Category</span>
+            <span style="font-size:11px;color:var(--s4)" id="ex-bva-lbl"></span>
+          </div>
+          <div id="ex-bva-rows"></div>
+        </div>
+
+        <!-- Stat cards — dynamic, top categories -->
+        <div class="cards c4" id="ex-stat-cards">
+          <div class="sc"><div class="sc-ico ir">📁</div><div class="sc-val" id="ex-t">—</div><div class="sc-lbl">Total Expenses (Rs)</div></div>
+          <!-- rest rendered by JS -->
+        </div>
+
+        <!-- Charts row: Monthly trend (new) + Category breakdown -->
+        <div class="g2">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-h">
+              <span class="card-t">📈 Monthly Trend</span>
+              <span style="font-size:11px;color:var(--s4)" id="ex-trend-lbl">Last 6 months</span>
+            </div>
+            <div class="cw"><canvas id="ch-exp-trend"></canvas></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-h"><span class="card-t">🥧 By Category</span></div>
+            <div class="cw"><canvas id="ch-exp"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Category progress bars -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-h"><span class="card-t">📊 Category Breakdown</span></div>
+          <div id="expCat"></div>
+        </div>
+
+        <!-- Filter row (new) + Table -->
+        <div class="card">
+          <div class="card-h"><span class="card-t">📋 All Records</span><span id="ex-filter-count" style="font-size:12px;color:var(--s4)"></span></div>
+          <div class="frow">
+            <input class="fi" id="ex-search" placeholder="🔍  Search description or vendor…" oninput="fExp()">
+            <select class="fs" id="ex-filter-cat" onchange="fExp()">
+              <option value="">All Categories</option>
+            </select>
+            <select class="fs" id="ex-filter-month" onchange="fExp()">
+              <option value="">All Months</option>
+            </select>
+            <select class="fs" id="ex-filter-status" onchange="fExp()">
+              <option value="">All Status</option>
+              <option>Approved</option>
+              <option>Pending</option>
+            </select>
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr><th>Description</th><th>Vendor / Payee</th><th>Category</th><th>Amount (Rs)</th><th>Date</th><th>Approved By</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="expTB"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ BUDGET ══ -->
+      <div id="pg-budget" class="ps">
+        <div class="ph">
+          <div class="ph-txt">
+            <h2>Budget Planner <span id="bud-year-badge" style="background:var(--g0);border:1.5px solid var(--g1);color:var(--g7);font-size:13px;font-weight:700;padding:3px 12px;border-radius:50px;margin-left:8px;vertical-align:middle"></span></h2>
+            <p>Auto-synced from Expenses · Separate data per year</p>
+          </div>
+          <div class="ph-acts">
+            <!-- Year Selector inside Budget Planner -->
+            <div style="display:flex;align-items:center;gap:0;background:#fff;border:1.5px solid var(--g1);border-radius:9px;overflow:hidden;flex-shrink:0">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--g0);border-right:1.5px solid var(--g1)">
+                <span style="font-size:10px;font-weight:800;color:var(--g7);letter-spacing:.5px">📅 YEAR</span>
+                <select id="yr-select" onchange="setActiveYear(this.value)" style="border:none;background:transparent;font-size:12px;font-weight:700;color:var(--g7);cursor:pointer;outline:none;font-family:inherit;max-width:90px"></select>
+              </div>
+              <button onclick="addNewYear()" title="Add new year" style="background:var(--g0);border:none;padding:5px 10px;cursor:pointer;font-size:13px;font-weight:700;color:var(--g6);font-family:inherit;transition:background .15s;line-height:1" onmouseover="this.style.background='#c4f0d4'" onmouseout="this.style.background='var(--g0)'">+ Year</button>
+            </div>
+            <button class="btn btn-outline" onclick="openCatMgr()">🏷️ Categories</button>
+            <button class="btn btn-outline" onclick="copyBudgetToNextYear()">📋 Copy to Next Year</button>
+            <button class="btn btn-outline" onclick="autoSyncBudget()">🔄 Sync Now</button>
+            <button class="btn btn-green" onclick="openAddBud()">+ Add Department</button>
+          </div>
+        </div>
+
+        <!-- Alert cards row — dynamic -->
+        <div id="b-alerts" style="margin-bottom:16px"></div>
+
+        <!-- Summary + Chart -->
+        <div class="g2">
+          <div class="card">
+            <div class="card-h"><span class="card-t">📊 Budget Summary</span></div>
+            <div class="mr"><span class="mr-k">Total Allocated</span><span class="mr-v" id="b-al">—</span></div>
+            <div class="mr"><span class="mr-k">Auto-Synced Spent</span><span class="mr-v" id="b-sp">—</span></div>
+            <div class="mr"><span class="mr-k">Remaining</span><span class="mr-v pos" id="b-rm">—</span></div>
+            <div class="mr"><span class="mr-k">Last Synced</span><span class="mr-v" id="b-sync-time" style="font-size:11px;color:var(--s4)">—</span></div>
+            <div style="margin-top:14px">
+              <div class="pbar" style="height:10px"><div class="pbar-f" id="b-bar" style="width:0%"></div></div>
+              <p style="font-size:12px;color:var(--s4);margin-top:5px" id="b-pct">0% utilized</p>
+            </div>
+          </div>
+          <div class="card"><div class="card-h"><span class="card-t">📈 Allocated vs Spent</span></div><div class="cw"><canvas id="ch-bud"></canvas></div></div>
+        </div>
+
+        <!-- Department list -->
+        <div class="card">
+          <div class="card-h">
+            <span class="card-t">🏛️ Department Budgets</span>
+            <span style="font-size:11px;color:var(--s4)">Expense categories se auto-link</span>
+          </div>
+          <div id="budList"></div>
+        </div>
+      </div>
+
+      <!-- ══ REPORTS ══ -->
+      <div id="pg-reports" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Reports</h2><p>Generate & filter financial reports</p></div>
+          <div class="ph-acts">
+            <button class="btn btn-outline" id="rpDateToggleBtn" onclick="rpToggleDateFilter()" title="Date Filter">📅 Date Filter</button>
+            <button class="btn btn-outline" id="rpPrintBtn" style="display:none" onclick="printReport()">🖨️ Print</button>
+            <button class="btn btn-green" id="rpExportBtn" style="display:none" onclick="showMo('exportReport')">📤 Export</button>
+          </div>
+        </div>
+        <!-- DATE FILTER BAR -->
+        <div id="rpDateBar" style="display:none;background:#fff;border:1.5px solid var(--s2);border-radius:var(--rad);padding:14px 18px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--s4);white-space:nowrap;">Filter by:</span>
+            <select class="fs" id="rpMonthSel" onchange="rpApplyDateFilter()" style="min-width:150px;">
+              <option value="">All Months</option>
+            </select>
+            <span style="font-size:12px;color:var(--s4);font-weight:500;">or Custom Range:</span>
+            <input type="date" class="fi" id="rpFromDate" onchange="rpApplyDateFilter()" style="max-width:160px;min-width:140px;" title="From Date">
+            <span style="font-size:13px;color:var(--s4);">—</span>
+            <input type="date" class="fi" id="rpToDate" onchange="rpApplyDateFilter()" style="max-width:160px;min-width:140px;" title="To Date">
+            <button class="btn btn-outline" onclick="rpClearDateFilter()" style="font-size:11px;padding:6px 12px;">✕ Clear</button>
+            <span id="rpDateLabel" style="font-size:11px;color:var(--g6);font-weight:600;display:none;background:var(--g0);padding:4px 10px;border-radius:50px;border:1px solid var(--g1);">All data</span>
+          </div>
+        </div>
+        <div class="rg" id="rpCards">
+          <div class="rc" id="rc-fee"     onclick="rpShow('fee')">    <div class="ri">💳</div><h4>Fee Collection</h4> <p>Monthly &amp; annual fee summary</p></div>
+          <div class="rc" id="rc-salary"  onclick="rpShow('salary')"> <div class="ri">💰</div><h4>Salary Report</h4>  <p>Staff disbursement details</p></div>
+          <div class="rc" id="rc-expense" onclick="rpShow('expense')"><div class="ri">📁</div><h4>Expense Report</h4> <p>Expenditure breakdown</p></div>
+          <div class="rc" id="rc-balance" onclick="rpShow('balance')"><div class="ri">📑</div><h4>Balance Sheet</h4>  <p>Income vs expenditure</p></div>
+          <div class="rc" id="rc-student" onclick="rpShow('student')"><div class="ri">🎓</div><h4>Student Ledger</h4> <p>Individual fee history</p></div>
+          <div class="rc" id="rc-annual"  onclick="rpShow('annual')"> <div class="ri">📈</div><h4>Annual Report</h4>  <p>Full year summary</p></div>
+          <div class="rc" id="rc-transport" onclick="rpShow('transport')"><div class="ri">🚌</div><h4>Transport Report</h4><p>Route &amp; vehicle-wise revenue</p></div>
+        </div>
+        <div class="card" id="rpBox" style="display:none">
+          <div class="card-h"><span class="card-t" id="rpTitle">—</span><span class="card-a" onclick="rpCloseBox()">✕ Close</span></div>
+          <div id="rpBody"></div>
+        </div>
+        <div class="card"><div class="card-h"><span class="card-t" id="ch-monthly-title">📈 Monthly Income vs Expenses — Full Year</span></div><div class="cw cwl"><canvas id="ch-monthly"></canvas></div></div>
+      </div>
+
+      <!-- ══ TRANSACTIONS ══ -->
+      <div id="pg-transactions" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>Transactions</h2><p>Complete financial history</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-green" onclick="openAddTx()">➕ Add Transaction</button>
+            <button class="btn btn-outline" onclick="showMo('exportTx')">📤 Export</button>
+          </div>
+        </div>
+        <div class="cards c3">
+          <div class="sc"><div class="sc-ico ig">💹</div><div class="sc-val" id="tx-in">—</div><div class="sc-lbl">Total Income (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ir">📤</div><div class="sc-val" id="tx-out">—</div><div class="sc-lbl">Total Expense (Rs)</div></div>
+          <div class="sc"><div class="sc-ico ib">⚖️</div><div class="sc-val" id="tx-bal">—</div><div class="sc-lbl">Net Balance (Rs)</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍  Search transactions…" oninput="fTx(this.value)">
+            <select class="fs" onchange="fTxT(this.value)"><option value="">All Types</option><option>Income</option><option>Expense</option></select>
+            <input type="date" class="fi" id="txFromDate" onchange="fTxFrom(this.value)" style="max-width:160px;min-width:140px;" title="From Date">
+            <input type="date" class="fi" id="txToDate" onchange="fTxTo(this.value)" style="max-width:160px;min-width:140px;" title="To Date">
+          </div>
+          <div class="tsw">
+            <table class="dt">
+              <thead><tr>
+                <th class="txsort" onclick="sortTx('id')" style="cursor:pointer;">ID<span id="txsi-id"></span></th>
+                <th>Description</th>
+                <th>Type</th>
+                <th class="txsort" onclick="sortTx('amt')" style="cursor:pointer;">Amount (Rs)<span id="txsi-amt"></span></th>
+                <th class="txsort" onclick="sortTx('date')" style="cursor:pointer;">Date<span id="txsi-date"></span></th>
+                <th>Category</th>
+                <th title="Cumulative balance across all transactions in chronological order">Running Balance (Rs)</th>
+              </tr></thead>
+              <tbody id="txTB"></tbody>
+            </table>
+          </div>
+          <div id="txPgn" class="tx-pgn" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 4px 2px;font-size:12px;color:var(--s5);"></div>
+        </div>
+      </div>
+
+      <!-- ══ SETTINGS ══ -->
+      <div id="pg-settings" class="ps">
+        <div class="ph"><div class="ph-txt"><h2>Settings</h2><p>System configuration</p></div></div>
+        <div class="g2">
+          <div class="card">
+            <div class="card-h"><span class="card-t">🏛️ Institution Info</span></div>
+            <div class="mf"><label>Institution Name</label><input id="st-instName"></div>
+            <div class="mf"><label>City</label><input id="st-city"></div>
+            <div class="mf"><label>Academic Year</label><input id="st-year"></div>
+            <div class="mf"><label>Admin Email</label><input type="email" id="st-email"></div>
+            <div class="mf"><label>Contact Number</label><input id="st-contact"></div>
+            <div class="mf"><label>Address</label><input id="st-address"></div>
+            <div class="mf">
+              <label>Institution Logo</label>
+              <div style="display:flex;align-items:center;gap:12px">
+                <div id="st-logo-preview" style="width:44px;height:44px;border-radius:10px;background:var(--s1);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--s2);flex-shrink:0">🎓</div>
+                <input type="file" id="st-logo-file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)">
+                <button type="button" class="mo-cancel" style="padding:8px 14px;font-size:12px" onclick="$('st-logo-file').click()">Upload</button>
+                <button type="button" class="mo-cancel" style="padding:8px 14px;font-size:12px" onclick="clearLogo()">Remove</button>
+              </div>
+              <p style="font-size:11px;color:var(--s4);margin-top:6px">PNG/JPG, ideally square. Applies to login page and sidebar.</p>
+            </div>
+            <button class="mo-save" onclick="saveInstitutionSettings()">Save Changes</button>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">💳 Fee Configuration</span></div>
+            <div class="form-sec" style="font-size:11px;font-weight:700;color:var(--s4);letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">Program Fees</div>
+            <div id="st-fee-container"><!-- fee inputs are generated dynamically from D.classes, one per program --></div>
+
+            <div class="form-sec" style="font-size:11px;font-weight:700;color:var(--s4);letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px">Late Fee</div>
+            <div class="mf"><label>Late Fee Penalty (%)</label><input type="number" id="st-latepct" min="0" max="100" step="0.5"></div>
+            <div class="mf"><label>Fee Due Day</label><input type="number" id="st-dueday" min="1" max="28" step="1"></div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 10px">Applies to <strong>all sections</strong> of each program (Boys &amp; Girls campus). Changing a fee here updates every class of that program — existing paid/pending fee records are not retroactively changed.</p>
+            <button class="mo-save" onclick="saveFeeConfigSettings()">Save Changes</button>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">🔒 Security</span></div>
+            <div class="mf"><label>Auto-Lock After (minutes idle)</label><input type="number" id="st-sesstimeout" min="1" max="120"></div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 10px">Session locks automatically after this many minutes of inactivity. Password can be changed from the sidebar <strong>🔑 Password</strong> button.</p>
+            <button class="mo-save" onclick="saveSecuritySettings()">Save Changes</button>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">🏦 Bank / Online Payment</span></div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 10px">These details are printed on every fee voucher (Student, College and Bank copies) so students know where to deposit fees.</p>
+            <div class="mf"><label>Bank Name</label><input id="st-bankName" placeholder="e.g. MCB Bank Ltd"></div>
+            <div class="mf"><label>Branch</label><input id="st-bankBranch" placeholder="e.g. Johar Town"></div>
+            <div class="mf"><label>Account Title</label><input id="st-bankAccountTitle" placeholder="e.g. Superior College"></div>
+            <div class="mf"><label>Account Number</label><input id="st-bankAccountNo" placeholder="e.g. 0123456789"></div>
+            <div class="mf"><label>IBAN</label><input id="st-bankIBAN" placeholder="e.g. PK00MCB0000000123456789"></div>
+            <div class="mf"><label>Customer Code (voucher prefix code)</label><input id="st-customerCode" placeholder="e.g. SC"></div>
+            <div class="mf"><label>Voucher Number Prefix</label><input id="st-voucherPrefix" placeholder="e.g. FEE"></div>
+            <button class="mo-save" onclick="saveBankSettings()">Save Changes</button>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">📋 Payment Instructions</span></div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 10px">These lines are printed as numbered instructions at the bottom of every fee voucher. One instruction per line.</p>
+            <div class="mf"><label>Instructions (one per line)</label><textarea id="st-voucherInstructions" rows="7" style="width:100%;border:1.5px solid var(--s2);border-radius:var(--rads);padding:10px 13px;font-size:13px;color:var(--s6);font-family:inherit;resize:vertical;background:#fff;outline:none"></textarea></div>
+            <button class="mo-save" onclick="saveInstructionsSettings()">Save Changes</button>
+          </div>
+          <div class="card">
+            <div class="card-h"><span class="card-t">💾 Data &amp; Backup</span></div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 12px">Export a backup of all system data (students, fees, salaries, settings, users) as a JSON file, or restore from a previously exported file.</p>
+            <button class="mo-save" style="margin-bottom:10px" onclick="exportBackup()">⬇️ Export Backup</button>
+            <input type="file" id="st-restore-file" accept=".json" style="display:none" onchange="restoreBackup(this)">
+            <button class="mo-cancel" style="margin-bottom:16px" onclick="$('st-restore-file').click()">⬆️ Restore from Backup</button>
+            <div class="form-sec" style="font-size:11px;font-weight:700;color:var(--s4);letter-spacing:1px;text-transform:uppercase;padding:8px 0 4px;border-top:1px solid var(--s2)">Danger Zone</div>
+            <p style="font-size:11px;color:var(--s4);margin:0 0 10px">Resets institution info, late fee % / due day, and security settings back to system defaults. Program fee amounts, students, fees, salaries, and other records are <strong>not</strong> affected.</p>
+            <button class="mo-cancel" style="color:#b91c1c;border-color:#fca5a5" onclick="resetSettingsToDefault()">↺ Reset Settings to Default</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ USERS ══ -->
+      <div id="pg-users" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>👥 Users</h2><p>Manage system users and roles</p></div>
+          <button class="btn btn-green" id="btn-addUser" onclick="openAddUser()">+ Add User</button>
+        </div>
+        <div class="cards" id="role-stats-cards" style="margin-bottom:20px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+          <!-- One card per role, rendered by rUsers() from the ROLES registry -->
+        </div>
+        <div class="card">
+          <div class="card-h"><span class="card-t">All Users</span></div>
+          <div class="frow">
+            <input class="fi" id="user-search" placeholder="🔍  Search by name, username or role…" oninput="fU(this.value)">
+          </div>
+          <div id="users-list"></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-h"><span class="card-t">🔐 Role Permissions</span></div>
+          <div class="tsw">
+            <table class="dt">
+              <thead id="perms-thead"><tr><th>Permission</th><th>Admin</th><th>Accountant</th><th>Viewer</th></tr></thead>
+              <tbody id="perms-tbody">
+                <!-- Rendered by renderPermsTable() from PERM_TABLE_ROWS + PERMS, so this
+                     always matches the real permission logic (single source of truth). -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ AUDIT LOG ══ -->
+      <div id="pg-auditlog" class="ps">
+        <div class="ph">
+          <div class="ph-txt"><h2>📋 Audit Log</h2><p>Login history &amp; system activity</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="exportAuditLog()">⬇️ Export CSV</button>
+            <button class="btn btn-outline" id="btn-clear-audit" onclick="clearAuditLog()">🗑 Clear Log</button>
+          </div>
+        </div>
+        <div class="cards c4" style="margin-bottom:20px">
+          <div class="sc"><div class="sc-ico ig">🔓</div><div class="sc-val" id="al-logins">0</div><div class="sc-lbl">Successful Logins</div></div>
+          <div class="sc"><div class="sc-ico ir">🔒</div><div class="sc-val" id="al-fails">0</div><div class="sc-lbl">Failed Attempts</div></div>
+          <div class="sc"><div class="sc-ico io">⚡</div><div class="sc-val" id="al-actions">0</div><div class="sc-lbl">Data Actions</div></div>
+          <div class="sc"><div class="sc-ico ib">📅</div><div class="sc-val" id="al-today">0</div><div class="sc-lbl">Today's Events</div></div>
+        </div>
+        <div class="card">
+          <div class="frow">
+            <input class="fi" placeholder="🔍 Search logs…" oninput="filterAudit(this.value)">
+            <select class="fs" onchange="filterAuditType(this.value)">
+              <option value="">All Events</option>
+              <option value="login">Logins</option>
+              <option value="logout">Logouts</option>
+              <option value="fail">Failed</option>
+              <option value="action">Actions</option>
+              <option value="change">Changes</option>
+            </select>
+            <input type="date" class="fi" id="al-from" onchange="filterAuditFrom(this.value)" style="max-width:160px;min-width:140px;" title="From Date">
+            <input type="date" class="fi" id="al-to" onchange="filterAuditTo(this.value)" style="max-width:160px;min-width:140px;" title="To Date">
+            <button class="btn btn-outline" onclick="clearAuditDateRange()" title="Clear date range">✕ Dates</button>
+          </div>
+          <div id="al-count" style="padding:8px 4px 4px;font-size:12px;color:var(--s4)"></div>
+          <div id="audit-log-list" style="max-height:500px;overflow-y:auto"></div>
+          <div id="al-pgn" style="display:flex;gap:10px;align-items:center;justify-content:center;padding:12px 0 2px;font-size:12px;color:var(--s4)"></div>
+        </div>
+      </div>
+
+    </div><!-- /pc -->
+  </div><!-- /mw -->
+</div><!-- /app -->
+
+<!-- ═══════════════ MODALS ═══════════════ -->
+
+<!-- CHANGE PASSWORD -->
+<div class="mo" id="mo-chgPass">
+  <div class="mo-box" style="max-width:400px">
+    <h3>🔑 Change Password</h3>
+    <p style="font-size:13px;color:var(--s4);margin-bottom:16px">Logged in as: <strong id="chgpass-who"></strong></p>
+    <div class="mf"><label>Current Password *</label><input type="password" id="cp-old" placeholder="Enter current password"></div>
+    <div class="mf"><label>New Password *</label><input type="password" id="cp-new" placeholder="Min 8 chars, 1 uppercase, 1 number"></div>
+    <div class="mf"><label>Confirm New Password *</label><input type="password" id="cp-conf" placeholder="Repeat new password"></div>
+    <div id="cp-err" style="display:none;color:#b91c1c;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#fff1f1;border-radius:6px;"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('chgPass')">Cancel</button>
+      <button class="mo-save" onclick="doChangePassword()">🔑 Change Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT USER -->
+<div class="mo" id="mo-addUser">
+  <div class="mo-box" style="max-width:440px">
+    <h3 id="addUserTitle">👤 Add New User</h3>
+    <input type="hidden" id="editUserIdx" value="-1">
+    <div class="mf"><label>Username *</label><input id="u-username" placeholder="e.g. accountant2"></div>
+    <div class="mf"><label>Full Name *</label><input id="u-fullname" placeholder="e.g. Fatima Rana"></div>
+    <div class="mf"><label>Role *</label>
+      <select id="u-role">
+        <option value="admin">👑 Admin — Full access</option>
+        <option value="accountant" selected>🧾 Accountant — Finance access</option>
+        <option value="viewer">👁 Viewer — Read only</option>
+      </select>
+    </div>
+    <div class="mf"><label id="u-pass-label">Password *</label><input type="password" id="u-pass" placeholder="Min 8 chars, 1 uppercase, 1 number"></div>
+    <div id="adduser-err" style="display:none;color:#b91c1c;font-size:13px;margin-bottom:8px;padding:8px 12px;background:#fff1f1;border-radius:6px;"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addUser')">Cancel</button>
+      <button class="mo-save" onclick="saveUser()">💾 Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION TIMEOUT LOCK SCREEN -->
+<div class="lock-screen" id="lockScreen" style="display:none">
+  <div class="lock-box">
+    <div style="font-size:40px;margin-bottom:10px">🔒</div>
+    <h3>Session Locked</h3>
+    <p>Your session timed out after inactivity.<br>Enter your password to continue.</p>
+    <div class="mf" style="text-align:left"><label>Password</label><input type="password" id="lockpass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')unlockSession()"></div>
+    <div id="lock-err" style="display:none;color:#b91c1c;font-size:12px;margin-bottom:8px">❌ Wrong password</div>
+    <button class="mo-save" style="width:100%;margin-top:6px" onclick="unlockSession()">🔓 Unlock</button>
+    <button class="mo-cancel" style="width:100%;margin-top:8px;display:block;text-align:center;cursor:pointer" onclick="doLogout()">Sign out instead</button>
+  </div>
+</div>
+
+
+
+<!-- ADD/EDIT STUDENT -->
+<div class="mo" id="mo-addStu">
+  <div class="mo-box" style="max-width:620px">
+    <h3 id="stuMoTitle">🎓 Add New Student</h3>
+    <input type="hidden" id="stuIdx" value="-1">
+    <div class="mo-id-pill">🆔 Student ID: <strong id="stuIdPrev">Auto</strong></div>
+    <div class="form-sec">Personal Information</div>
+    <div class="mg">
+      <div class="mf"><label>Full Name *</label><input id="sn" placeholder="e.g. Ali Khan"></div>
+      <div class="mf"><label>Father Name *</label><input id="sfn" placeholder="e.g. Muhammad Khan"></div>
+      <div class="mf"><label>Roll Number *</label><input id="sr" placeholder="e.g. CS-2025-01"></div>
+      <div class="mf"><label>Contact</label><input id="sc" placeholder="0300-0000000"></div>
+    </div>
+    <div class="mf"><label>Home Address</label><input id="sadr" placeholder="e.g. House 1, Gulberg, Lahore"></div>
+    <div class="form-sec">Academic Information</div>
+    <div class="mg">
+      <div class="mf"><label>Campus *</label>
+        <select id="sgender" onchange="onStuGenderChange()">
+          <option value="Male">👦 Boys Campus</option>
+          <option value="Female">👧 Girls Campus</option>
+        </select>
+      </div>
+      <div class="mf"><label>Level *</label>
+        <select id="slevel" onchange="onStuLevelChange()">
+          <option value="Inter">Intermediate</option>
+        </select>
+      </div>
+      <div class="mf"><label>Class *</label>
+        <select id="scls" onchange="onStuClsChange()"></select>
+      </div>
+      <div class="mf"><label>Section *</label>
+        <select id="ssec"></select>
+      </div>
+      <div class="mf" style="display:none"><label>Department</label>
+        <select id="sdp"></select>
+      </div>
+      <div class="mf"><label>Semester / Year</label>
+        <select id="ssm">
+          <option>1st Year</option>
+          <option>2nd Year</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-sec">Fee Information</div>
+    <div class="mg">
+      <div class="mf"><label>Fee Amount (Rs) *</label><input id="sfa" type="number" min="0" step="100" value="25000" oninput="stuFeePreview()"></div>
+      <div class="mf"><label>Payment Type</label>
+        <select id="s-ftype" onchange="onStuFeeTypeChange(this.value)">
+          <option value="full">Full Payment (Single Due Date)</option>
+          <option value="instalment">Instalment Plan</option>
+        </select>
+      </div>
+      <div class="mf" id="s-finst-wrap" style="display:none"><label>Number of Instalments</label>
+        <select id="s-finst-count" onchange="stuFeePreview()">
+          <option value="2">2 Instalments</option>
+          <option value="3">3 Instalments</option>
+          <option value="4">4 Instalments</option>
+          <option value="6">6 Instalments</option>
+        </select>
+      </div>
+      <div class="mf"><label>Due Date *</label>
+        <input id="s-fdue" type="date" oninput="stuFeePreview()">
+        <div style="font-size:11px;color:var(--s4);margin-top:4px">⚠️ If the due date has already passed, the fee will be marked Overdue automatically</div>
+      </div>
+    </div>
+    <div class="form-sec">Scholarship / Concession</div>
+    <div class="mg">
+      <div class="mf"><label>Scholarship Type</label>
+        <select id="s-schtype" onchange="onStuScholarshipChange()">
+          <option value="None">None</option>
+          <option value="Merit">🏅 Merit</option>
+          <option value="Sports">🏆 Sports</option>
+          <option value="Need-based">🤝 Need-based</option>
+          <option value="Staff Ward">👨‍🏫 Staff Ward</option>
+          <option value="Sibling">👨‍👩‍👦 Sibling</option>
+          <option value="Hifz-e-Quran">📖 Hifz-e-Quran</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="mf" id="s-schmode-wrap" style="display:none"><label>Relief Type</label>
+        <select id="s-schmode" onchange="onStuScholarshipChange()">
+          <option value="percent">Percentage of fee (%)</option>
+          <option value="fixed">Fixed amount (Rs)</option>
+        </select>
+      </div>
+      <div class="mf" id="s-schval-wrap" style="display:none"><label id="s-schval-lbl">Relief Value</label>
+        <input id="s-schval" type="number" min="0" value="0" oninput="stuFeePreview()">
+      </div>
+      <div class="mf" id="s-schnote-wrap" style="display:none"><label>Note / Reference</label>
+        <input id="s-schnote" placeholder="e.g. Board position 3rd, approved by Principal">
+      </div>
+    </div>
+    <div id="s-sch-note-line" style="display:none;font-size:11.5px;color:var(--s4);margin:-4px 0 12px">
+      ℹ️ This scholarship is applied automatically to every new fee raised for this student. It never changes fees that were already issued.
+    </div>
+    <!-- Fee Plan Preview -->
+    <div id="s-fee-preview" style="display:none;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:12px 14px;margin-bottom:12px;font-size:12.5px;color:var(--g8)"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addStu');clearStuErr()">Cancel</button>
+      <button class="mo-save" onclick="saveStu()">💾 Save Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT CLASS -->
+<div class="mo" id="mo-addClass">
+  <div class="mo-box" style="max-width:460px">
+    <h3 id="clsMoTitle">🏫 Add New Class</h3>
+    <input type="hidden" id="clsIdx" value="-1">
+    <div class="form-sec">Class Information</div>
+    <div class="mf"><label>Class Name *</label><input id="cls-name" placeholder="e.g. ICS, FSc Pre-Medical, FA, ICS-2"></div>
+    <div class="mf" style="margin-top:10px"><label>Class Code *</label><input id="cls-code" placeholder="e.g. ICS, FSc-PreMed, FA"></div>
+    <div class="mf" style="margin-top:10px"><label>Campus *</label>
+      <select id="cls-gender">
+        <option value="Boys">👦 Boys Campus</option>
+        <option value="Girls">👧 Girls Campus</option>
+      </select>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addClass')">Cancel</button>
+      <button class="mo-save" onclick="saveClass()">💾 Save Class</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SECTION (standalone) -->
+<div class="mo" id="mo-addSection">
+  <div class="mo-box" style="max-width:480px">
+    <h3 id="secMoTitle">📋 Add Section to Class</h3>
+    <div class="form-sec">Section Information</div>
+    <div class="mf"><label>Campus *</label>
+      <select id="sec-campus" onchange="secCampusChange()">
+        <option value="">— Select Campus —</option>
+        <option value="Boys">👦 Boys Campus</option>
+        <option value="Girls">👧 Girls Campus</option>
+      </select>
+    </div>
+    <div class="mf" style="margin-top:10px"><label>Select Class *</label>
+      <select id="sec-cls-select" onchange="secClsChange()" disabled>
+        <option value="">— Select campus first —</option>
+      </select>
+    </div>
+    <div class="mf" style="margin-top:10px"><label>Section Name *</label>
+      <input id="sec-name-input" placeholder="e.g. A, B, C or Morning, Evening">
+    </div>
+    <div class="mf" style="margin-top:10px"><label>Student Capacity</label>
+      <input id="sec-capacity" type="number" placeholder="e.g. 40" min="1" max="200">
+      <div style="font-size:11px;color:var(--s4);margin-top:4px">Maximum number of students allowed in this section</div>
+    </div>
+    <div id="sec-existing" style="margin-top:10px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addSection')">Cancel</button>
+      <button class="mo-save" onclick="saveSection()">💾 Save Section</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW STUDENT -->
+<div class="mo" id="mo-viewStu">
+  <div class="mo-box" style="max-width:540px">
+    <h3>👁 Student — <span id="vStuName"></span></h3>
+    <div id="vStuBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('viewStu')">Close</button></div>
+  </div>
+</div>
+
+<!-- EXPORT STUDENTS -->
+<div class="mo" id="mo-exportStu">
+  <div class="mo-box" style="max-width:440px">
+    <h3>📤 Export Students</h3>
+    <p style="font-size:13px;color:var(--s4);margin-bottom:16px;font-weight:400">Choose export format — <strong id="expStuCnt">0</strong> students</p>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('students','csv');closeMo('exportStu')"><div class="ec-ic">📄</div><h4>CSV File</h4><p>Excel / Google Sheets</p></div>
+      <div class="exp-card" onclick="doExport('students','excel');closeMo('exportStu')"><div class="ec-ic">📊</div><h4>Excel (.xlsx)</h4><p>Microsoft Excel</p></div>
+      <div class="exp-card" onclick="doExport('students','pdf');closeMo('exportStu')"><div class="ec-ic">📕</div><h4>PDF Report</h4><p>Printable document</p></div>
+      <div class="exp-card" onclick="printStudents();closeMo('exportStu')"><div class="ec-ic">🖨️</div><h4>Print View</h4><p>Browser print</p></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportStu')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- IMPORT STUDENTS -->
+<div class="mo" id="mo-importStu">
+  <div class="mo-box" style="max-width:560px">
+    <h3>📥 Import Students</h3>
+    <div class="imp-zone" id="impZone" onclick="document.getElementById('impFile').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="impDrop(event)">
+      <div class="iz-ic">📂</div>
+      <h4>Click or Drag & Drop</h4>
+      <p style="margin-top:4px">Supports CSV and Excel (.xlsx / .xls)</p>
+    </div>
+    <input type="file" id="impFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="impHandle(this)">
+    <div class="imp-tmpl">
+      <div><h4>📋 Download Template</h4><p>Correct column format for import</p></div>
+      <button class="mo-save" style="font-size:12px;padding:7px 14px" onclick="dlTemplate()">⬇ Template</button>
+    </div>
+    <div class="imp-cols">
+      <strong>Required Columns:</strong>
+      <span class="col-tag ct-req">Name</span>
+      <span class="col-tag ct-req">Roll No</span>
+      <span class="col-tag ct-req">Department</span>
+      <span class="col-tag ct-opt">Father Name</span>
+      <span class="col-tag ct-opt">Class</span>
+      <span class="col-tag ct-opt">Section</span>
+      <span class="col-tag ct-opt">Semester</span>
+      <span class="col-tag ct-opt">Fee</span>
+      <span class="col-tag ct-opt">Status</span>
+      <span class="col-tag ct-opt">Contact</span>
+    </div>
+    <div class="pbar-wrap" id="impPbar" style="display:none"><div class="pbar-fill" id="impPfill" style="width:0%"></div></div>
+    <div id="impResult"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('importStu');resetImp()">Close</button></div>
+  </div>
+</div>
+
+<!-- IMPORT ERROR REPORT -->
+<div class="mo" id="mo-impReport">
+  <div class="mo-box" style="max-width:580px">
+    <h3>📋 Full Import Report</h3>
+    <div id="impReportBody"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('impReport')">Close</button>
+      <button class="mo-save" onclick="dlErrReport()">📥 Download CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT EMPLOYEE -->
+<div class="mo" id="mo-addEmp">
+  <div class="mo-box" style="max-width:600px">
+    <h3 id="empMoTitle">👤 Add New Employee</h3>
+    <input type="hidden" id="empIdx" value="-1">
+    <div class="mo-id-pill">🆔 Employee ID: <strong id="empIdPrev">Auto</strong></div>
+    <div class="mg">
+      <div class="mf"><label>Full Name *</label><input id="en" placeholder="e.g. Dr. Ahmed Ali"></div>
+      <div class="mf"><label>Designation *</label><input id="ed" placeholder="e.g. Professor"></div>
+      <div class="mf"><label>Department *</label>
+        <select id="edp"></select>
+      </div>
+      <div class="mf"><label>Status</label>
+        <select id="est"><option>Active</option><option>On Leave</option><option>Inactive</option></select>
+      </div>
+      <div class="mf"><label>Basic Salary (Rs)</label><input id="es" type="number" min="0" step="500" value="80000"></div>
+      <div class="mf"><label>Allowances (Rs)</label><input id="ea" type="number" min="0" step="500" value="15000"></div>
+      <div class="mf"><label>Contact</label><input id="ec" placeholder="0300-0000000"></div>
+      <div class="mf"><label>Email</label><input id="ee" type="email" placeholder="email@gct.edu.pk"></div>
+    </div>
+    <div class="mf"><label>Address</label><input id="eaddr" placeholder="e.g. House 5, Model Town, Lahore"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addEmp')">Cancel</button>
+      <button class="mo-save" onclick="saveEmp()">💾 Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE DEPARTMENTS -->
+<div class="mo" id="mo-manageDepts">
+  <div class="mo-box" style="max-width:420px">
+    <h3>🏢 Manage Departments</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Add or delete departments here. A department can only be deleted if it has no employees assigned.</p>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="newDeptInput" placeholder="Enter new department name..." style="flex:1;padding:8px 10px;border:1.5px solid var(--s2);border-radius:8px;font-size:13px;background:var(--s1);color:var(--s5)">
+      <button class="mo-save" onclick="addDept()" style="padding:8px 16px;white-space:nowrap">+ Add</button>
+    </div>
+    <div id="deptList"></div>
+    <div class="mo-acts" style="margin-top:12px">
+      <button class="mo-cancel" onclick="closeMo('manageDepts')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW EMPLOYEE -->
+<div class="mo" id="mo-viewEmp">
+  <div class="mo-box" style="max-width:520px">
+    <h3>👁 Employee — <span id="vEmpName"></span></h3>
+    <div id="vEmpBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('viewEmp')">Close</button></div>
+  </div>
+</div>
+
+<!-- VIEW FEE DETAIL -->
+<div class="mo" id="mo-viewFee">
+  <div class="mo-box" style="max-width:520px">
+    <h3>👁 Fee Record — <span id="vFeeName"></span></h3>
+    <div id="vFeeBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('viewFee')">Close</button></div>
+  </div>
+</div>
+
+<!-- STUDENT FEE LEDGER (every payment ever received) -->
+<div class="mo" id="mo-feeLedger">
+  <div class="mo-box" style="max-width:720px">
+    <h3>📜 Fee Ledger — <span id="vLedgerName"></span></h3>
+    <div id="vLedgerBody"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('feeLedger')">Close</button>
+      <button class="mo-save" id="vLedgerPrint">🖨️ Print Ledger</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT EMPLOYEE -->
+<div class="mo" id="mo-exportEmp">
+  <div class="mo-box" style="max-width:400px">
+    <h3>📤 Export Employees</h3>
+    <p style="font-size:13px;color:var(--s4);margin-bottom:14px;font-weight:400"><strong id="expEmpCnt">0</strong> employees</p>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('employees','csv');closeMo('exportEmp')"><div class="ec-ic">📄</div><h4>CSV</h4><p>Excel compatible</p></div>
+      <div class="exp-card" onclick="doExport('employees','excel');closeMo('exportEmp')"><div class="ec-ic">📊</div><h4>Excel</h4><p>Microsoft Excel</p></div>
+      <div class="exp-card" onclick="doExport('employees','pdf');closeMo('exportEmp')"><div class="ec-ic">📕</div><h4>PDF</h4><p>Printable PDF</p></div>
+      <div class="exp-card" onclick="printEmp();closeMo('exportEmp')"><div class="ec-ic">🖨️</div><h4>Print</h4><p>Browser print</p></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportEmp')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- RECORD FEE -->
+<div class="mo" id="mo-addFee">
+  <div class="mo-box" style="max-width:540px">
+    <h3 id="feeMoTitle">💳 Record Fee Payment</h3>
+    <input type="hidden" id="feeEditIdx" value="-1">
+    <input type="hidden" id="fn">
+    <input type="hidden" id="fr">
+
+    <!-- STEP INDICATOR -->
+    <div style="display:flex;gap:0;margin-bottom:18px;border-radius:8px;overflow:hidden;border:1px solid var(--s2)">
+      <div id="fstep1-ind" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;background:var(--g6);color:#fff">1 · Student</div>
+      <div id="fstep2-ind" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;background:var(--s1);color:var(--s4)">2 · Fee Details</div>
+      <div id="fstep3-ind" style="flex:1;padding:8px;text-align:center;font-size:11px;font-weight:700;background:var(--s1);color:var(--s4)">3 · Confirm</div>
+    </div>
+    <!-- Instalment plan overview (shown in edit mode) -->
+    <div id="fee-inst-plan" style="display:none"></div>
+    <!-- Note shown when the selected student has an unpaid disciplinary fine —
+         its amount gets folded into this payment automatically -->
+    <div id="fee-fine-note" style="display:none;background:#fff1f1;border:1px solid #fca5a5;border-radius:var(--rads);padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#b91c1c;font-weight:600"></div>
+
+    <!-- STEP 1: Student Selection -->
+    <div id="fstep1">
+      <!-- Quick Roll No / ID Lookup -->
+      <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:var(--rads);padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px">⚡ Quick Lookup</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="f-roll-lookup" placeholder="Type Roll No. or Student ID (e.g. CS-2025-01)" oninput="feeRollLookup(this.value)"
+            style="flex:1;padding:10px 13px;border:1.5px solid #fcd34d;border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit;background:#fff">
+        </div>
+        <!-- Pending / Overdue fees for looked-up student -->
+        <div id="f-roll-fees" style="display:none;margin-top:10px"></div>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--s4);margin-bottom:10px;font-weight:500">— or search by name below —</div>
+      <div class="mf" style="margin-bottom:10px">
+        <input id="fstu-search" placeholder="🔍 Search by name…" oninput="feeSearchStu(this.value)"
+          style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+      </div>
+      <div id="fstu-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--s2);border-radius:var(--rads);background:#fff"></div>
+      <div id="fstu-selected" style="display:none;margin-top:10px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:12px 14px">
+        <div style="font-size:11px;font-weight:700;color:var(--s4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Selected Student</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="fstu-av" style="width:36px;height:36px;border-radius:50%;background:var(--g5);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
+          <div>
+            <div id="fstu-name" style="font-weight:700;font-size:14px;color:var(--s6)">—</div>
+            <div id="fstu-info" style="font-size:11px;color:var(--s4);margin-top:2px">—</div>
+          </div>
+          <button onclick="feeDeselectStu()" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:16px;color:var(--s4)">✕</button>
+        </div>
+      </div>
+      <div class="mo-acts">
+        <button class="mo-cancel" onclick="closeMo('addFee')">Cancel</button>
+        <button class="mo-save" id="fstep1-next" onclick="feeStep(2)" disabled style="opacity:.4">Next →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Fee Details -->
+    <div id="fstep2" style="display:none">
+      <div class="mg">
+        <div class="mf">
+          <label>Due Date *</label>
+          <input id="fdd" type="date" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+          <div style="font-size:11px;color:var(--s4);margin-top:4px">⚠️ Fee will be automatically marked Overdue after the due date passes</div>
+        </div>
+        <div class="mf">
+          <label>Total Fee — Before Discount (Rs) *</label>
+          <input id="fa" type="number" min="0" step="100" value="25000" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit" oninput="feeUpdateInstalment()">
+        </div>
+        <div class="mf">
+          <label>Extra Concession (Rs)</label>
+          <input id="fConc" type="number" min="0" value="0" oninput="feeDiscountChange()" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+          <div style="font-size:11px;color:var(--s4);margin-top:4px">One-off relief on this fee only. Any standing scholarship is applied automatically.</div>
+        </div>
+        <div class="mf" id="fConcReasonWrap" style="display:none;grid-column:1/-1">
+          <label>Concession Reason *</label>
+          <input id="fConcReason" placeholder="e.g. Hardship case — approved by the Principal" oninput="feeDiscountChange()" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+        </div>
+        <div id="fDiscBox" style="display:none;grid-column:1/-1;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 13px;font-size:12.5px;margin-bottom:13px"></div>
+        <div class="mf">
+          <label>Semester / Year</label>
+          <select id="fsm" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit;background:#fff">
+            <option>1st Year</option><option>2nd Year</option>
+          </select>
+        </div>
+        <div class="mf" id="fStatusWrap">
+          <label>Payment Status</label>
+          <select id="fst" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit;background:#fff" onchange="feeStatusChange(this.value)">
+            <option value="Paid">✅ Paid in Full</option>
+            <option value="Partial">🟡 Partial Payment</option>
+            <option value="Pending">⏳ Pending</option>
+            <option value="Overdue">❌ Overdue</option>
+          </select>
+        </div>
+        <div class="mf" id="fPartialPayWrap" style="display:none">
+          <label>Record Payment</label>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--s4);margin-bottom:6px">
+            <span>Already Paid: <strong id="fPay-already">Rs 0</strong></span>
+            <span>Total Payable: <strong id="fPay-owed">Rs 0</strong></span>
+          </div>
+          <label style="font-size:12px;font-weight:600;margin-top:2px">Pay Now (Rs)</label>
+          <input id="fPayNow" type="number" min="0" oninput="feePreviewPartial()" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+          <div id="fPay-preview" style="font-size:12px;margin-top:6px;font-weight:600"></div>
+        </div>
+        <div class="mf" id="fpm-wrap">
+          <label>Payment Method</label>
+          <select id="fpm" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit;background:#fff">
+            <option>Cash</option><option>Bank Transfer</option><option>Online</option><option>Cheque</option>
+          </select>
+        </div>
+        <div class="mf">
+          <label>Receipt No.</label>
+          <input id="frc" placeholder="Auto-generated if left blank" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+        </div>
+        <!-- Instalment Toggle -->
+        <div id="fInstToggleWrap" style="background:var(--s1);border:1.5px solid var(--s2);border-radius:var(--rads);padding:12px 14px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+            <input type="checkbox" id="fInstCheck" onchange="feeToggleInstalment(this.checked)" style="width:16px;height:16px;accent-color:var(--g5)">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--s6)">📆 Instalment Plan</div>
+              <div style="font-size:11px;color:var(--s4);margin-top:1px">Split fee into multiple installments</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="mo-acts">
+        <button class="mo-cancel" onclick="feeStep(1)">← Back</button>
+        <button class="mo-save" id="fstep2-next" onclick="feeStep(3)">Next →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Instalment -->
+    <div id="fstep3" style="display:none">
+      <!-- No instalment: simple summary + save -->
+      <div id="fNoInst">
+        <div style="background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:14px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:700;color:var(--s4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Summary</div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--g1)"><span>Student</span><strong id="fsum-name">—</strong></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--g1)"><span>Roll No</span><span id="fsum-roll">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--g1)"><span>Amount</span><strong id="fsum-amt">—</strong></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--g1)"><span>Status</span><span id="fsum-st">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0"><span>Method</span><span id="fsum-mt">—</span></div>
+        </div>
+        <div class="mo-acts">
+          <button class="mo-cancel" onclick="feeStep(2)">← Back</button>
+          <button class="mo-save" onclick="saveFee()">💾 Save Record</button>
+        </div>
+      </div>
+
+      <!-- With instalment -->
+      <div id="fWithInst" style="display:none">
+        <div style="background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:12px 14px;margin-bottom:14px;font-size:13px">
+          <strong>Total Fee:</strong> <span id="fInst-total">—</span> &nbsp;·&nbsp; <strong>Per Instalment:</strong> <span id="fInst-per">—</span>
+        </div>
+        <div class="mf" style="margin-bottom:10px">
+          <label>Number of Instalments</label>
+          <select id="fInstCount" onchange="feeGenInstalments()" style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit;background:#fff">
+            <option value="2">2 Instalments</option>
+            <option value="3">3 Instalments</option>
+            <option value="4">4 Instalments</option>
+            <option value="6">6 Instalments</option>
+          </select>
+        </div>
+        <div id="fInstRows" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+        <div class="mo-acts">
+          <button class="mo-cancel" onclick="feeStep(2)">← Back</button>
+          <button class="mo-save" id="fInstSaveBtn" onclick="saveFeeInstalments()">💾 Save Instalments</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT DISCIPLINARY FINE -->
+<div class="mo" id="mo-addFine">
+  <div class="mo-box" style="max-width:480px">
+    <h3 id="fineMoTitle">🚨 Add Disciplinary Fine</h3>
+    <input type="hidden" id="fineEditIdx" value="-1">
+    <input type="hidden" id="fn-name">
+    <input type="hidden" id="fn-roll">
+
+    <div class="mf" style="margin-bottom:10px">
+      <label>Student *</label>
+      <input id="fnstu-search" placeholder="🔍 Search by name or roll no…" oninput="fineSearchStu(this.value)"
+        style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+      <div id="fnstu-list" style="max-height:150px;overflow-y:auto;border:1px solid var(--s2);border-radius:var(--rads);background:#fff;margin-top:4px"></div>
+      <div id="fnstu-selected" style="display:none;margin-top:8px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="fnstu-av" style="width:32px;height:32px;border-radius:50%;background:var(--g5);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
+          <div>
+            <div id="fnstu-nm" style="font-weight:700;font-size:13px;color:var(--s6)">—</div>
+            <div id="fnstu-info" style="font-size:11px;color:var(--s4);margin-top:2px">—</div>
+          </div>
+          <button onclick="fineDeselectStu()" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:15px;color:var(--s4)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mg">
+      <div class="mf"><label>Reason *</label>
+        <select id="fn-reason" onchange="fineReasonChange(this.value)">
+          <option value="Uniform Violation">Uniform Violation</option>
+          <option value="Late Attendance">Late Attendance / Late Arrival</option>
+          <option value="Indiscipline / Misconduct">Indiscipline / Misconduct</option>
+          <option value="Property Damage">Property Damage</option>
+          <option value="Unauthorized Mobile Use">Unauthorized Mobile Use</option>
+          <option value="Skipping Class">Skipping Class</option>
+          <option value="Other">Other (specify)</option>
+        </select>
+      </div>
+      <div class="mf" id="fn-reason-other-wrap" style="display:none"><label>Specify Reason</label>
+        <input id="fn-reason-other" placeholder="e.g. Fighting on campus">
+      </div>
+      <div class="mf"><label>Fine Amount (Rs) *</label><input id="fn-amt" type="number" min="0" step="50" value="500"></div>
+      <div class="mf"><label>Date *</label><input id="fn-date" type="date"></div>
+      <div class="mf"><label>Status</label>
+        <select id="fn-status">
+          <option value="Pending">⏳ Pending</option>
+          <option value="Paid">✅ Paid</option>
+        </select>
+      </div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addFine');fineDeselectStu()">Cancel</button>
+      <button class="mo-save" onclick="saveFine()">💾 Save Fine</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK ASSIGN FEE (Lab / Sports / any category — to a department or the whole college) -->
+<div class="mo" id="mo-bulkFee">
+  <div class="mo-box" style="max-width:500px">
+    <h3>📦 Bulk Assign Fee</h3>
+    <p style="font-size:12.5px;color:var(--s4);margin:-6px 0 14px">Add a fee (Lab, Sports, or any other type) to many students at once — pick a scope below.</p>
+
+    <div class="mf" style="margin-bottom:10px">
+      <label>Apply To *</label>
+      <select id="bf-scope" onchange="bulkFeeScopeChange(this.value)">
+        <option value="all">🏫 Whole College (All Students)</option>
+        <option value="dept">🏢 Specific Department</option>
+        <option value="gender">🚻 Specific Campus (Boys / Girls)</option>
+      </select>
+    </div>
+    <div class="mf" id="bf-dept-wrap" style="display:none;margin-bottom:10px">
+      <label>Department</label>
+      <select id="bf-dept"></select>
+    </div>
+    <div class="mf" id="bf-dept-campus-wrap" style="display:none;margin-bottom:10px">
+      <label>Campus (within this department)</label>
+      <select id="bf-dept-campus">
+        <option value="all">🏫 Both Campuses</option>
+        <option value="Male">👦 Boys Campus Only</option>
+        <option value="Female">👧 Girls Campus Only</option>
+      </select>
+    </div>
+    <div class="mf" id="bf-gender-wrap" style="display:none;margin-bottom:10px">
+      <label>Campus</label>
+      <select id="bf-gender">
+        <option value="Male">👦 Boys Campus</option>
+        <option value="Female">👧 Girls Campus</option>
+      </select>
+    </div>
+    <div class="mf" style="margin-bottom:10px">
+      <label>Year *</label>
+      <select id="bf-year">
+        <option value="all">📚 Both Years</option>
+        <option value="1st Year">1️⃣ 1st Year Only</option>
+        <option value="2nd Year">2️⃣ 2nd Year Only</option>
+      </select>
+    </div>
+
+    <div class="mg">
+      <div class="mf"><label>Fee Title *</label>
+        <input id="bf-cat" placeholder="e.g. Lab Fee, Sports Fee, Library Fee">
+      </div>
+      <div class="mf"><label>Amount per Student (Rs) *</label><input id="bf-amt" type="number" min="0" step="100" value="1000"></div>
+      <div class="mf"><label>Due Date *</label><input id="bf-due" type="date"></div>
+    </div>
+
+    <div class="mf" style="margin-top:4px;display:flex;align-items:flex-start;gap:8px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 14px">
+      <input type="checkbox" id="bf-separate" style="margin-top:3px;width:16px;height:16px;flex:none">
+      <label for="bf-separate" style="font-weight:normal;font-size:12.5px;line-height:1.5;cursor:pointer">
+        Show as <strong>separate voucher</strong> <span style="color:var(--s4)">(off = merge into student's pending fee)</span>
+      </label>
+    </div>
+
+    <div class="mf" style="margin-top:4px;display:flex;align-items:flex-start;gap:8px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 14px">
+      <input type="checkbox" id="bf-sch" style="margin-top:3px;width:16px;height:16px;flex:none">
+      <label for="bf-sch" style="font-weight:normal;font-size:12.5px;line-height:1.5;cursor:pointer">
+        Apply each student's <strong>standing scholarship</strong> to this fee <span style="color:var(--s4)">(off = full amount charged — scholarships normally apply to tuition only)</span>
+      </label>
+    </div>
+
+    <div id="bf-preview" style="background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 14px;margin-top:6px;font-size:12.5px;color:var(--s6)">Select options above to see how many students this will affect.</div>
+
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('bulkFee')">Cancel</button>
+      <button class="mo-save" onclick="confirmBulkFee()">📦 Assign Fee</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT TRANSPORT FEE -->
+<div class="mo" id="mo-addTransportFee">
+  <div class="mo-box" style="max-width:480px">
+    <h3 id="tfMoTitle">🚌 Assign Transport Fee</h3>
+    <input type="hidden" id="tf-editIdx" value="-1">
+    <input type="hidden" id="tf-name">
+    <input type="hidden" id="tf-roll">
+
+    <div class="mf" style="margin-bottom:10px">
+      <label>Student *</label>
+      <input id="tfstu-search" placeholder="🔍 Search by name or roll no…" oninput="transportSearchStu(this.value)"
+        style="width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+      <div id="tfstu-list" style="max-height:150px;overflow-y:auto;border:1px solid var(--s2);border-radius:var(--rads);background:#fff;margin-top:4px"></div>
+      <div id="tfstu-selected" style="display:none;margin-top:8px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="tfstu-av" style="width:32px;height:32px;border-radius:50%;background:var(--g5);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
+          <div>
+            <div id="tfstu-nm" style="font-weight:700;font-size:13px;color:var(--s6)">—</div>
+            <div id="tfstu-info" style="font-size:11px;color:var(--s4);margin-top:2px">—</div>
+          </div>
+          <button onclick="transportDeselectStu()" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:15px;color:var(--s4)">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Route / Pickup Point *</label>
+        <select id="tf-route" onchange="tfRouteSelected(this.value)"></select>
+        <input id="tf-route-custom" placeholder="Custom route / pickup point name" style="display:none;margin-top:6px;width:100%;padding:10px 13px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;outline:none;font-family:inherit">
+        <p style="font-size:11px;color:var(--s4);margin-top:5px">Don't see the route? <a href="#" onclick="closeMo('addTransportFee');openRouteMaster();return false;" style="color:var(--g6);font-weight:600">Add it in Route Master</a></p>
+      </div>
+      <div class="mf"><label>Amount (Rs) *</label><input id="tf-amt" type="number" min="0" step="100" value="2500"></div>
+      <div class="mf"><label>Due Date *</label><input id="tf-due" type="date"></div>
+      <div class="mf"><label>Status</label>
+        <select id="tf-status">
+          <option value="Pending">⏳ Pending</option>
+          <option value="Paid">✅ Paid</option>
+        </select>
+      </div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addTransportFee');transportDeselectStu()">Cancel</button>
+      <button class="mo-save" onclick="saveTransportFee()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROUTE / VEHICLE MASTER — list view -->
+<div class="mo" id="mo-routeMaster">
+  <div class="mo-box" style="max-width:980px">
+    <h3>🚐 Route / Vehicle Master</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Every van/route the college runs — its vehicle, driver, seat occupancy, document expiry and fixed monthly fee. Transport Fee assignment picks from this list instead of typing it by hand each time.</p>
+    <div id="rt-doc-alert" style="display:none"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn btn-green" onclick="openAddRoute()">+ Add Route</button>
+    </div>
+    <div class="tsw">
+      <table class="dt">
+        <thead><tr><th>Route</th><th>Vehicle No</th><th>Driver</th><th>Seats</th><th>Monthly Fee (Rs)</th><th>Fitness Cert.</th><th>Insurance</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="rtTB"></tbody>
+      </table>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('routeMaster')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT ROUTE -->
+<div class="mo" id="mo-addRoute">
+  <div class="mo-box" style="max-width:520px">
+    <h3 id="rtMoTitle">🚐 Add Route / Vehicle</h3>
+    <input type="hidden" id="rt-editIdx" value="-1">
+    <div class="mf" style="margin-bottom:10px"><label>Route Name / Pickup Point *</label><input id="rt-name" placeholder="e.g. Model Town → Campus"></div>
+    <div class="mg">
+      <div class="mf"><label>Vehicle No</label><input id="rt-vehicle" placeholder="e.g. LES-4521"></div>
+      <div class="mf"><label>Capacity (Seats)</label><input id="rt-capacity" type="number" min="1" step="1" value="40"></div>
+      <div class="mf"><label>Driver Name</label><input id="rt-driver" placeholder="e.g. Ahmed Khan"></div>
+      <div class="mf"><label>Driver Phone</label><input id="rt-phone" placeholder="e.g. 0300-1234567"></div>
+      <div class="mf"><label>Fixed Monthly Fee (Rs) *</label><input id="rt-fee" type="number" min="0" step="100" value="2500"></div>
+      <div class="mf"><label>Status</label>
+        <select id="rt-status"><option value="Active">Active</option><option value="Inactive">Inactive</option></select>
+      </div>
+      <div class="mf"><label>Fitness Certificate Expiry</label><input id="rt-fitness" type="date"></div>
+      <div class="mf"><label>Insurance Expiry</label><input id="rt-insurance" type="date"></div>
+    </div>
+    <p style="font-size:11px;color:var(--s4);margin-top:5px">Optional — leave blank if not tracked. Route Master flags a certificate as "Expiring Soon" within 30 days and "Expired" once past due.</p>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addRoute')">Cancel</button>
+      <button class="mo-save" onclick="saveRoute()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLLECT TRANSPORT FEE PAYMENT (partial-payment aware) -->
+<div class="mo" id="mo-collectTf">
+  <div class="mo-box" style="max-width:440px">
+    <h3>💳 Collect Transport Fee Payment</h3>
+    <div style="background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:12px 14px;margin-bottom:14px">
+      <div id="ctf-name" style="font-weight:700;font-size:14px;color:var(--s6)">—</div>
+      <div id="ctf-info" style="font-size:11px;color:var(--s4);margin-top:2px">—</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+        <div><div style="font-size:10px;color:var(--s4);text-transform:uppercase;font-weight:700">Total</div><div id="ctf-total" style="font-size:13px;font-weight:800;color:var(--s6)">—</div></div>
+        <div><div style="font-size:10px;color:var(--s4);text-transform:uppercase;font-weight:700">Already Paid</div><div id="ctf-paid" style="font-size:13px;font-weight:800;color:var(--g6)">—</div></div>
+        <div><div style="font-size:10px;color:var(--s4);text-transform:uppercase;font-weight:700">Remaining</div><div id="ctf-remaining" style="font-size:13px;font-weight:800;color:var(--rd)">—</div></div>
+      </div>
+    </div>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1"><label>Amount to Collect Now (Rs) *</label><input id="ctf-amt" type="number" min="0" step="100"></div>
+      <div class="mf"><label>Payment Method</label>
+        <select id="ctf-method"><option>Cash</option><option>Bank Transfer</option><option>JazzCash</option><option>EasyPaisa</option><option>Cheque</option></select>
+      </div>
+      <div class="mf"><label>Payment Date</label><input id="ctf-date" type="date"></div>
+    </div>
+    <p style="font-size:11px;color:var(--s4);margin-top:4px">Collecting less than the remaining balance leaves this record <strong>Partially Paid</strong> — the rest can be collected any time before or after the due date.</p>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('collectTf')">Cancel</button>
+      <button class="mo-save" onclick="saveCollectTransportFee()">💾 Collect Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE TRANSPORT STATUS (Active / Inactive per month) -->
+<div class="mo" id="mo-tfStatus">
+  <div class="mo-box" style="max-width:460px">
+    <h3>🚦 Manage Transport Status</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:12px">Search any student and mark a specific month — or every month from a point onward — as Inactive. Auto-Generate skips Inactive months automatically, and they never count toward Pending or Collected.</p>
+    <div class="mf" style="position:relative">
+      <label>Search Student (Name or Roll No)</label>
+      <input id="mts-search" placeholder="🔍 Type name or roll no…" oninput="tsSearchStudents(this.value)">
+      <div id="mts-list" style="max-height:150px;overflow-y:auto;border:1px solid var(--s2);border-radius:var(--rads);background:#fff;margin-top:4px"></div>
+    </div>
+    <div id="mts-selected" style="display:none;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px;background:var(--g0);border:1px solid var(--g1);border-radius:var(--rads);padding:9px 12px;margin-bottom:12px">
+        <div id="mts-av" style="width:32px;height:32px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">?</div>
+        <div style="flex:1;min-width:0">
+          <div id="mts-nm" style="font-weight:700;font-size:13px;color:var(--s6)">—</div>
+          <div id="mts-info" style="font-size:11px;color:var(--s4)">—</div>
+        </div>
+      </div>
+      <div id="mts-currentList" style="margin-bottom:12px"></div>
+      <div class="mg">
+        <div class="mf"><label>Month</label><select id="mts-month"></select></div>
+        <div class="mf">
+          <label>&nbsp;</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:500;font-size:12.5px;color:var(--s5);margin-top:9px;cursor:pointer">
+            <input type="checkbox" id="mts-permanent" style="width:15px;height:15px"> No end date (permanent)
+          </label>
+        </div>
+      </div>
+      <div class="mf" style="margin-bottom:10px"><label>Reason (Optional)</label><input id="mts-reason" placeholder="e.g. Family arranged own pickup for the term"></div>
+      <div style="display:flex;gap:8px">
+        <button class="mo-save" style="flex:1;background:#fee2e2;color:#991b1b" onclick="tsSetStatus('inactive')">⛔ Mark Inactive</button>
+        <button class="mo-save" style="flex:1" onclick="tsSetStatus('active')">✅ Mark Active</button>
+      </div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('tfStatus')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO GENERATE MONTHLY TRANSPORT FEE -->
+<div class="mo" id="mo-autoGenTf">
+  <div class="mo-box" style="max-width:560px">
+    <h3>⚡ Monthly Transport Fee Auto-Generate</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:16px">Generates a fresh transport fee record for every currently-enrolled student (based on their most recent route + amount) for the selected month. Students who already have a record for that month are skipped.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Select Month *</label>
+        <select id="agTfMonth" onchange="refreshAutoGenTfPreview()"></select>
+      </div>
+      <div class="mf">
+        <label>Due Day of Month</label>
+        <input id="agTfDueDay" type="number" min="1" max="28" step="1" value="10" onchange="refreshAutoGenTfPreview()">
+      </div>
+    </div>
+    <div id="agTfPreview" style="margin-top:4px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('autoGenTf')">Cancel</button>
+      <button class="mo-save" id="agTfConfirmBtn" onclick="confirmAutoGenTf()">⚡ Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT FEES -->
+<div class="mo" id="mo-exportFee">
+  <div class="mo-box" style="max-width:400px">
+
+    <h3>📤 Export Fees</h3>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('fees','csv');closeMo('exportFee')"><div class="ec-ic">📄</div><h4>CSV</h4></div>
+      <div class="exp-card" onclick="doExport('fees','excel');closeMo('exportFee')"><div class="ec-ic">📊</div><h4>Excel</h4></div>
+      <div class="exp-card" onclick="doExport('fees','pdf');closeMo('exportFee')"><div class="ec-ic">📕</div><h4>PDF</h4></div>
+      <div class="exp-card" onclick="printFees();closeMo('exportFee')"><div class="ec-ic">🖨️</div><h4>Print</h4></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportFee')">Cancel</button></div>
+  </div>
+</div>
+
+
+<!-- BULK PROCESS SALARY -->
+<div class="mo" id="mo-bulkProcess">
+  <div class="mo-box" style="max-width:500px">
+    <h3>✅ Bulk Salary Process</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:16px">Mark all <strong>Pending</strong> salaries for the selected month as <strong>Paid</strong> at once.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Select Month *</label>
+        <select id="bpMonth" onchange="refreshBulkPreview()"></select>
+      </div>
+    </div>
+    <div id="bpPreview" style="margin-top:8px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('bulkProcess')">Cancel</button>
+      <button class="mo-save" id="bpConfirmBtn" onclick="confirmBulkProcess()">✅ Process</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO GENERATE MONTHLY SALARIES -->
+<div class="mo" id="mo-autoGenSal">
+  <div class="mo-box" style="max-width:560px">
+    <h3>⚡ Monthly Salary Auto-Generate</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:16px">Generate salaries for all active employees at once. Employees who already have a salary record for that month will be skipped.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Select Month *</label>
+        <select id="agMonth" onchange="refreshAutoGenPreview()"></select>
+      </div>
+      <div class="mf">
+        <label>Default Payment Method</label>
+        <select id="agMethod"><option>Bank Transfer</option><option>Cash</option><option>Cheque</option></select>
+      </div>
+      <div class="mf">
+        <label>Default Status</label>
+        <select id="agStatus"><option>Pending</option><option>Paid</option></select>
+      </div>
+    </div>
+    <div id="agPreview" style="margin-top:4px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('autoGenSal')">Cancel</button>
+      <button class="mo-save" id="agConfirmBtn" onclick="confirmAutoGen()">⚡ Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROCESS SALARY -->
+<div class="mo" id="mo-addSal">
+  <div class="mo-box">
+    <h3 id="salMoTitle">💰 Process Salary</h3>
+    <input type="hidden" id="salEditIdx" value="-1">
+    <div class="mo-id-pill">🆔 Salary ID: <strong id="salIdPrev">Auto</strong></div>
+    <div class="mg">
+      <div class="mf"><label>Employee *</label>
+        <select id="sln-sel" onchange="salEmpSelected(this.value)">
+          <option value="">-- Select Employee --</option>
+        </select>
+      </div>
+      <div class="mf"><label>Designation</label><input id="sld" placeholder="Auto-filled from employee"></div>
+      <div class="mf"><label>Basic Salary (Rs) *</label><input id="slb" type="number" min="0" step="500" value="80000"></div>
+      <div class="mf"><label>Allowances (Rs)</label><input id="sla" type="number" min="0" step="500" value="15000"></div>
+      <div class="mf"><label>Deductions (Rs)</label><input id="sld2" type="number" min="0" step="100" value="0" placeholder="e.g. EOBI, tax, loan"></div>
+      <div class="mf"><label>Month</label><input id="slm" value="April 2025"></div>
+      <div class="mf"><label>Payment Method</label><select id="slmt"><option>Bank Transfer</option><option>Cash</option><option>Cheque</option></select></div>
+      <div class="mf"><label>Status</label><select id="slst"><option>Paid</option><option>Pending</option></select></div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addSal')">Cancel</button>
+      <button class="mo-save" onclick="saveSal()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW SALARY -->
+<div class="mo" id="mo-viewSal">
+  <div class="mo-box" style="max-width:480px">
+    <h3>👁 Salary Record — <span id="vSalName"></span></h3>
+    <div id="vSalBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('viewSal')">Close</button></div>
+  </div>
+</div>
+
+<!-- EXPORT SALARIES -->
+<div class="mo" id="mo-exportSal">
+  <div class="mo-box" style="max-width:400px">
+    <h3>📤 Export Salaries</h3>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('salaries','csv');closeMo('exportSal')"><div class="ec-ic">📄</div><h4>CSV</h4></div>
+      <div class="exp-card" onclick="doExport('salaries','excel');closeMo('exportSal')"><div class="ec-ic">📊</div><h4>Excel</h4></div>
+      <div class="exp-card" onclick="doExport('salaries','pdf');closeMo('exportSal')"><div class="ec-ic">📕</div><h4>PDF</h4></div>
+      <div class="exp-card" onclick="printSalaries();closeMo('exportSal')"><div class="ec-ic">🖨️</div><h4>Print List</h4></div>
+      <div class="exp-card" onclick="closeMo('exportSal');openBulkSlipModal()" style="grid-column:1/-1;background:var(--g0);border-color:var(--g4)"><div class="ec-ic">🧾</div><h4 style="color:var(--g7)">Bulk Salary Slips</h4><p style="font-size:11px;color:var(--s4)">Sab employees ki slips ek saath</p></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportSal')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- BULK SALARY SLIP MODAL -->
+<div class="mo" id="mo-bulkSlip">
+  <div class="mo-box" style="max-width:500px">
+    <h3>🧾 Bulk Salary Slips</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Print or download salary slips for all employees of a selected month at once.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Select Month *</label>
+        <select id="bsMonth" onchange="refreshBulkSlipPreview()"></select>
+      </div>
+      <div class="mf" style="grid-column:1/-1">
+        <label>Filter By Status</label>
+        <select id="bsStatus" onchange="refreshBulkSlipPreview()"><option value="">All (Paid + Pending)</option><option value="Paid">Paid Only</option><option value="Pending">Pending Only</option></select>
+      </div>
+    </div>
+    <div id="bsPreview" style="margin-top:8px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('bulkSlip')">Cancel</button>
+      <button class="mo-save" id="bsConfirmBtn" onclick="printBulkSlips()">🖨️ Print All Slips</button>
+    </div>
+  </div>
+</div>
+
+<!-- INCREMENT TRACKER MODAL -->
+<div class="mo" id="mo-addIncrement">
+  <div class="mo-box" style="max-width:520px">
+    <h3>📈 Salary Increment / Promotion</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Employee ki salary update hogi aur increment history record hogi.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Employee *</label>
+        <select id="incEmpSel" onchange="incEmpSelected(this.value)">
+          <option value="">-- Select Employee --</option>
+        </select>
+      </div>
+      <div class="mf"><label>Current Basic (Rs)</label><input id="incCurBasic" readonly style="background:var(--s1);color:var(--s4)"></div>
+      <div class="mf"><label>Current Allow (Rs)</label><input id="incCurAllow" readonly style="background:var(--s1);color:var(--s4)"></div>
+      <div class="mf">
+        <label>Increment Type</label>
+        <select id="incType" onchange="incCalcNew()">
+          <option value="percentage">Percentage (%)</option>
+          <option value="fixed">Fixed Amount (Rs)</option>
+          <option value="promotion">Promotion (New Salary)</option>
+        </select>
+      </div>
+      <div class="mf"><label id="incValLbl">Increment % *</label><input id="incVal" type="number" min="0" placeholder="e.g. 10" oninput="incCalcNew()"></div>
+      <div class="mf"><label>New Designation (optional)</label><input id="incNewDesig" placeholder="Leave blank if no change"></div>
+      <div class="mf"><label>New Basic (Rs)</label><input id="incNewBasic" readonly style="background:var(--g0);border-color:var(--g4);font-weight:700;color:var(--g7)"></div>
+      <div class="mf"><label>Effective Date</label><input id="incDate" type="date"></div>
+      <div class="mf" style="grid-column:1/-1"><label>Reason / Notes *</label><input id="incReason" placeholder="e.g. Annual increment, Performance bonus, Promotion to HOD"></div>
+    </div>
+    <div id="incPreview" style="margin-top:8px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addIncrement')">Cancel</button>
+      <button class="mo-save" onclick="saveIncrement()">💾 Apply Increment</button>
+    </div>
+  </div>
+</div>
+
+<!-- INCREMENT HISTORY MODAL -->
+<div class="mo" id="mo-incHistory">
+  <div class="mo-box" style="max-width:580px">
+    <h3>📋 Increment History — <span id="incHistName"></span></h3>
+    <div id="incHistBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('incHistory')">Close</button></div>
+  </div>
+</div>
+
+<!-- LEAVE DEDUCTION MODAL -->
+<div class="mo" id="mo-leaveDeduct">
+  <div class="mo-box" style="max-width:520px">
+    <h3>📅 Unpaid Leave Deduction</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Record unpaid leave — per-day deduction will be calculated automatically and deducted from salary.</p>
+    <div class="mg">
+      <div class="mf" style="grid-column:1/-1">
+        <label>Employee *</label>
+        <select id="lvEmpSel" onchange="lvEmpSelected(this.value)">
+          <option value="">-- Select Employee --</option>
+        </select>
+      </div>
+      <div class="mf"><label>Leave Start Date *</label><input id="lvFrom" type="date" oninput="lvCalcDeduction()"></div>
+      <div class="mf"><label>Leave End Date *</label><input id="lvTo" type="date" oninput="lvCalcDeduction()"></div>
+      <div class="mf"><label>Leave Type</label>
+        <select id="lvType"><option>Unpaid Leave</option><option>Sick Leave (Unpaid)</option><option>Absent Without Permission</option></select>
+      </div>
+      <div class="mf"><label>Salary Month</label><input id="lvMonth" placeholder="e.g. May 2025"></div>
+      <div class="mf"><label>Reason</label><input id="lvReason" placeholder="e.g. Family emergency"></div>
+    </div>
+    <div id="lvPreview" style="display:none;margin-top:8px;padding:12px 14px;background:var(--g0);border:1px solid var(--g1);border-radius:10px"></div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('leaveDeduct')">Cancel</button>
+      <button class="mo-save" id="lvSaveBtn" onclick="saveLeaveDeduction()">💾 Apply Deduction</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD EXPENSE -->
+<div class="mo" id="mo-addExp">
+  <div class="mo-box" style="max-width:520px">
+    <h3>📁 Add Expense</h3>
+    <div class="mg">
+      <div class="mf"><label>Description *</label><input id="xd" placeholder="e.g. Lab Equipment purchase"></div>
+      <div class="mf"><label>Category</label><select id="xc"></select></div>
+      <div class="mf"><label>Amount (Rs) *</label><input id="xa" type="number" min="0" step="100" value="5000"></div>
+      <div class="mf"><label>Vendor / Payee</label><input id="xv" placeholder="e.g. LESCO, Agha Steel"></div>
+      <div class="mf"><label>Approved By</label><input id="xp" placeholder="e.g. Principal"></div>
+      <div class="mf"><label>Status</label><select id="xs"><option>Approved</option><option>Pending</option></select></div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addExp')">Cancel</button>
+      <button class="mo-save" onclick="saveExp()">Add Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE CATEGORIES -->
+<div class="mo" id="mo-catMgr">
+  <div class="mo-box" style="max-width:440px">
+    <h3>🏷️ Expense Categories</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px">Add or delete expense categories.</p>
+    <div id="cat-list" style="max-height:260px;overflow-y:auto;margin-bottom:14px"></div>
+    <div style="background:var(--s1);border:1.5px solid var(--s2);border-radius:10px;padding:14px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--s5);margin-bottom:10px">➕ New Category</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+        <div class="mf" style="margin:0"><label>Name *</label><input id="nc-name" placeholder="e.g. Sports, Events"></div>
+        <div class="mf" style="margin:0"><label>Icon</label><input id="nc-icon" placeholder="🏆" style="text-align:center;font-size:18px"></div>
+      </div>
+      <button class="btn btn-green" style="margin-top:10px;width:100%" onclick="addExpCat()">+ Add Category</button>
+    </div>
+    <div class="mo-acts" style="margin-top:14px">
+      <button class="mo-cancel" onclick="closeMo('catMgr')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT EXPENSES -->
+<div class="mo" id="mo-exportExp">
+  <div class="mo-box" style="max-width:400px">
+    <h3>📤 Export Expenses</h3>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('expenses','csv');closeMo('exportExp')"><div class="ec-ic">📄</div><h4>CSV</h4></div>
+      <div class="exp-card" onclick="doExport('expenses','excel');closeMo('exportExp')"><div class="ec-ic">📊</div><h4>Excel</h4></div>
+      <div class="exp-card" onclick="doExport('expenses','pdf');closeMo('exportExp')"><div class="ec-ic">📕</div><h4>PDF</h4></div>
+      <div class="exp-card" onclick="printExpenses();closeMo('exportExp')"><div class="ec-ic">🖨️</div><h4>Print</h4></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportExp')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- ADD / EDIT BUDGET -->
+<div class="mo" id="mo-addBud">
+  <div class="mo-box" style="max-width:480px">
+    <h3 id="addBud-title">🏛️ Department Budget</h3>
+    <input type="hidden" id="bud-edit-idx" value="">
+
+    <div class="mf">
+      <label>Department Name *</label>
+      <input id="bud-dept-input" placeholder="e.g. IT & Labs, Library, Administration"
+        style="width:100%;padding:10px 12px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;color:var(--s6);background:var(--s0);outline:none;font-family:inherit;margin-top:6px">
+    </div>
+
+    <div class="mf" style="margin-top:14px">
+      <label>Expense Category <span style="font-size:10px;color:var(--s4);font-weight:400">— expenses from this category will be auto-synced</span></label>
+      <select id="bud-cat-select" style="width:100%;padding:10px 12px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:14px;color:var(--s6);background:var(--s0);outline:none;font-family:inherit;margin-top:6px">
+        <option value="">— No category linked —</option>
+      </select>
+      <p style="font-size:11px;color:var(--s4);margin-top:5px">Select a category to auto-track spending. Leave blank for manual tracking.</p>
+    </div>
+
+    <div class="mf" style="margin-top:16px">
+      <label>Allocated Budget (Rs)</label>
+      <div style="position:relative;margin-top:6px">
+        <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;font-weight:700;color:var(--s4)">Rs</span>
+        <input id="bda" type="number" value="100000" min="0"
+          style="width:100%;padding:11px 14px 11px 30px;border:1.5px solid var(--s2);border-radius:var(--rads);font-size:16px;font-weight:700;color:var(--s6);background:var(--s0);outline:none;font-family:inherit">
+      </div>
+    </div>
+
+    <div class="mo-acts" style="margin-top:20px">
+      <button class="mo-cancel" onclick="closeMo('addBud')">Cancel</button>
+      <button class="mo-save" id="addBud-save-btn" onclick="saveBud()">Add Department</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM (budget) -->
+<div class="mo" id="mo-delBud">
+  <div class="mo-box" style="max-width:360px;text-align:center">
+    <div style="font-size:36px;margin-bottom:10px">🗑️</div>
+    <h3 style="margin-bottom:8px">Delete Department?</h3>
+    <p id="delBud-name" style="font-size:14px;color:var(--s5);margin-bottom:6px;font-weight:700"></p>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:20px">This action cannot be undone. Expense data will remain safe.</p>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('delBud')">Cancel</button>
+      <button class="btn btn-red" id="delBud-confirm-btn" style="padding:9px 20px;font-size:13px;font-weight:700">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW TRANSACTION DETAIL -->
+<div class="mo" id="mo-viewTx">
+  <div class="mo-box" style="max-width:520px">
+    <h3>🧾 Transaction — <span id="vTxId"></span></h3>
+    <div id="vTxBody"></div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('viewTx')">Close</button></div>
+  </div>
+</div>
+
+<!-- ADD MANUAL TRANSACTION -->
+<div class="mo" id="mo-addTx">
+  <div class="mo-box" style="max-width:480px">
+    <h3>➕ Add Transaction</h3>
+    <p style="font-size:12px;color:var(--s4);margin-bottom:14px;font-weight:400">For misc entries not linked to a fee, salary, or expense record — e.g. donation, refund, bank correction.</p>
+    <div class="mg">
+      <div class="mf"><label>Description *</label><input id="mtd" placeholder="e.g. Donation from Alumni Association"></div>
+      <div class="mf"><label>Type *</label><select id="mtt"><option>Income</option><option>Expense</option></select></div>
+      <div class="mf"><label>Amount (Rs) *</label><input id="mta" type="number" min="0" step="100" value="1000"></div>
+      <div class="mf"><label>Date</label><input id="mtdt" type="date"></div>
+      <div class="mf"><label>Category</label><input id="mtc" placeholder="e.g. Donation, Refund, Adjustment"></div>
+    </div>
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('addTx')">Cancel</button>
+      <button class="mo-save" onclick="saveManualTx()">Add Transaction</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT TRANSACTIONS -->
+<div class="mo" id="mo-exportTx">
+  <div class="mo-box" style="max-width:400px">
+    <h3>📤 Export Transactions</h3>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="doExport('transactions','csv');closeMo('exportTx')"><div class="ec-ic">📄</div><h4>CSV</h4></div>
+      <div class="exp-card" onclick="doExport('transactions','excel');closeMo('exportTx')"><div class="ec-ic">📊</div><h4>Excel</h4></div>
+      <div class="exp-card" onclick="doExport('transactions','pdf');closeMo('exportTx')"><div class="ec-ic">📕</div><h4>PDF</h4></div>
+      <div class="exp-card" onclick="printTx();closeMo('exportTx')"><div class="ec-ic">🖨️</div><h4>Print</h4></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportTx')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- REPORT EXPORT MODAL -->
+<div class="mo" id="mo-exportReport">
+  <div class="mo-box" style="max-width:420px">
+    <h3>📤 Export Report</h3>
+    <p id="rpExportLabel" style="font-size:13px;color:var(--s4);margin-bottom:14px;text-align:center"></p>
+    <div class="exp-grid">
+      <div class="exp-card" onclick="exportReport('csv');closeMo('exportReport')"><div class="ec-ic">📄</div><h4>CSV</h4><p style="font-size:11px;color:var(--s4);margin-top:4px">Spreadsheet</p></div>
+      <div class="exp-card" onclick="exportReport('excel');closeMo('exportReport')"><div class="ec-ic">📊</div><h4>Excel</h4><p style="font-size:11px;color:var(--s4);margin-top:4px">.xlsx file</p></div>
+      <div class="exp-card" onclick="exportReport('pdf');closeMo('exportReport')"><div class="ec-ic">📕</div><h4>PDF</h4><p style="font-size:11px;color:var(--s4);margin-top:4px">Print-ready</p></div>
+      <div class="exp-card" onclick="printReport();closeMo('exportReport')"><div class="ec-ic">🖨️</div><h4>Print</h4><p style="font-size:11px;color:var(--s4);margin-top:4px">Preview</p></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('exportReport')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- QUICK ADD -->
+<div class="mo" id="mo-quickAdd">
+  <div class="mo-box" style="max-width:380px">
+    <h3>⚡ Quick Add</h3>
+    <div class="quick-g">
+      <div class="rc" onclick="closeMo('quickAdd');openAddStu()"><div class="ri">🎓</div><h4>Student</h4></div>
+      <div class="rc" onclick="closeMo('quickAdd');openAddEmp()"><div class="ri">👤</div><h4>Employee</h4></div>
+      <div class="rc" onclick="closeMo('quickAdd');openAddFee()"><div class="ri">💳</div><h4>Fee</h4></div>
+      <div class="rc" onclick="closeMo('quickAdd');_syncCatDropdowns();showMo('addExp')"><div class="ri">📁</div><h4>Expense</h4></div>
+      <div class="rc" onclick="closeMo('quickAdd');openAddSal()"><div class="ri">💰</div><h4>Salary</h4></div>
+      <div class="rc" onclick="closeMo('quickAdd');openAddBud()"><div class="ri">📅</div><h4>Budget</h4></div>
+    </div>
+    <div class="mo-acts"><button class="mo-cancel" onclick="closeMo('quickAdd')">Close</button></div>
+  </div>
+</div>
+
+<!-- FEE REMINDER PREVIEW MODAL -->
+<div class="mo" id="mo-reminderPreview">
+  <div class="mo-box" style="max-width:600px">
+    <h3 id="rem-modal-title">📱 WhatsApp Reminder Preview</h3>
+
+    <!-- Stats bar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div style="background:var(--g0);border-radius:var(--rads);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--g6)" id="rem-modal-cnt">0</div>
+        <div style="font-size:10px;color:var(--s4);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Students</div>
+      </div>
+      <div style="background:#fff1f1;border-radius:var(--rads);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--rd)" id="rem-modal-amt">0</div>
+        <div style="font-size:10px;color:var(--s4);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Total Due</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:var(--rads);padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--yl)" id="rem-modal-type-badge">WA</div>
+        <div style="font-size:10px;color:var(--s4);margin-top:2px;text-transform:uppercase;letter-spacing:.5px;font-weight:600">Channel</div>
+      </div>
+    </div>
+
+    <!-- Message preview with phone mockup feel -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--s4);margin-bottom:7px">Preview (First Student)</div>
+      <div id="rem-modal-preview" style="background:#e8fdf0;border-radius:12px;border-radius:0 12px 12px 12px;padding:13px 15px;font-size:13px;color:#1c2b22;line-height:1.7;white-space:pre-wrap;max-height:140px;overflow-y:auto;font-family:inherit;border:1px solid #c4f0d4"></div>
+    </div>
+
+    <!-- Scrollable student list -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--s4);margin-bottom:7px">Recipients</div>
+      <div id="rem-modal-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--s2);border-radius:var(--rads)"></div>
+    </div>
+
+    <div class="mo-acts">
+      <button class="mo-cancel" onclick="closeMo('reminderPreview')">Cancel</button>
+      <button class="mo-save" id="rem-modal-send-btn" style="background:#25D366" onclick="confirmSendReminders()">📱 Open WhatsApp & Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRINT PREVIEW OVERLAY (no iframe - cross-origin safe) ═══ -->
+<div id="printOverlay">
+  <div id="printToolbar">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="font-size:18px">📄</span>
+      <strong id="printTitle" style="font-size:14px;color:#1c2b22;font-family:inherit">Preview</strong>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="doPrint()" style="padding:8px 16px;background:#1a6636;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">🖨️ Print</button>
+      <button id="printDlBtn" style="display:none;padding:8px 16px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">⬇ Download HTML</button>
+      <button onclick="closePrintOverlay()" style="padding:8px 16px;background:#f1f4f2;color:#4a5e52;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">✕ Close</button>
+    </div>
+  </div>
+  <iframe id="printFrame"></iframe>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script src="script.js"></script>
+<script src="api.js"></script>
+</body>
+</html>
