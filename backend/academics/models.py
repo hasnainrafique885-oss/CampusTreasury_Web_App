@@ -75,6 +75,10 @@ class Student(models.Model):
         PARTIAL = 'Partial', 'Partial'
         PARTIAL_OVERDUE = 'Partial-Overdue', 'Partial-Overdue'
 
+    class ScholarshipMode(models.TextChoices):
+        PERCENT = 'percent', 'Percent'
+        FIXED = 'fixed', 'Fixed'
+
     student_id = models.CharField(max_length=30, unique=True)  # e.g. STU-2024-010
     name = models.CharField(max_length=150)
     father_name = models.CharField(max_length=150, blank=True)
@@ -89,6 +93,17 @@ class Student(models.Model):
     contact = models.CharField(max_length=30, blank=True)
     address = models.CharField(max_length=255, blank=True)
     academic_year = models.ForeignKey(AcademicYear, null=True, blank=True, on_delete=models.SET_NULL, related_name='students')
+
+    # ── Standing scholarship ──────────────────────────────────────────
+    # Applied at the moment a Fee is RAISED (see finance.services.
+    # compute_fee_discount), never retroactively — changing a student's
+    # scholarship here never rewrites fees already issued, because the
+    # relief amount/label is snapshotted onto each Fee row at creation time.
+    sch_type = models.CharField(max_length=30, default='None')  # 'None' | 'Merit' | 'Need' | 'Staff' | 'Sibling' | ...
+    sch_mode = models.CharField(max_length=10, choices=ScholarshipMode.choices, default=ScholarshipMode.PERCENT)
+    sch_val = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # percent (0-100) or flat Rs, per sch_mode
+    sch_note = models.CharField(max_length=255, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

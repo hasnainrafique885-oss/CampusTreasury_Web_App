@@ -36,7 +36,7 @@ class Fee(models.Model):
     fee_id = models.CharField(max_length=30, unique=True, blank=True)  # e.g. F-001
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='fees')
     semester = models.CharField(max_length=30, blank=True)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # NET payable (after relief) — the figure every other field/status is computed against
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.TUITION)
     method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True)
@@ -50,6 +50,17 @@ class Fee(models.Model):
     plan_id = models.CharField(max_length=40, blank=True)
     academic_year = models.ForeignKey(AcademicYear, null=True, blank=True, on_delete=models.SET_NULL, related_name='fees')
     tx_seq = models.PositiveIntegerField(null=True, blank=True)
+
+    # ── Scholarship / concession relief — see finance.services.compute_fee_discount ──
+    # `amount` above is ALWAYS gross_amount − scholarship_amount − concession_amount.
+    # These fields are snapshotted at creation time purely for receipts/reporting;
+    # nothing downstream re-derives `amount` from them.
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    scholarship_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    scholarship_label = models.CharField(max_length=100, blank=True)
+    concession_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_reason = models.CharField(max_length=255, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

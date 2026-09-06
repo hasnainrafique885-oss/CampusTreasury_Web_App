@@ -21,16 +21,28 @@ Being connected to a real database is not all-or-nothing — it's being rolled o
 - **Audit Log** — every login, logout, and user-management action is recorded in the database and shown on the Audit Log page (visible to Admin/Accountant only, exactly like before)
 - **Initial data load** — the moment you log in, Students, Fees, Employees, Salaries, Expenses, Budget, Fines, Transport Fees, Routes, Classes and Settings are all pulled from the **real database** instead of the old hard-coded demo arrays, so the Dashboard and every page shows real numbers on load
 
-This was verified with an automated end-to-end test (`e2e/test_module1.js`) that drives the actual `index.html` + `script.js` + `api.js` against a running Django server on a real MySQL database — not a mock. See §8 "Testing" to run it yourself.
+Verified with `e2e/test_module1.js` — 32/32 pass against a real MySQL database, twice in a row with no reset in between.
+
+### ✅ Module 2 — done, tested against a real MySQL database
+- **Students** — Add / Edit / Delete persisted to the database, including the standing scholarship fields (type, mode, value, note)
+- **Fees** — full Gross → Scholarship/Discount/Concession → Net Payable → Instalments → Payments → Paid/Remaining → Status pipeline, computed and **enforced server-side** (`finance/services.py`) — a client can submit a gross amount and a concession, but can never dictate the net payable figure or the scholarship relief directly; the server always recomputes both from the student's standing scholarship
+- **Instalment plans** — both the equal-split plan created at admission and a custom (admin-typed, uneven) plan from Fee Management are created atomically server-side, with the same relief math
+- **Partial payments / multiple payments** — every payment is its own row in the database (never overwritten), and paid/remaining amounts and status (Paid / Partial / Pending / Overdue / Partial-Overdue) are always **derived from real numbers**, never trusted from the client
+- **Instalments must be collected in order and can never be overpaid** — enforced by the API itself (409 / 400), independent of the UI's own (client-side, convenience-only) guards
+- **Student fee ledger** — a dedicated endpoint returns a student's full fee history with a Gross/Relief/Net/Paid/Remaining summary
+- **Cascading delete** — deleting a student removes their fee records too (enforced by the database, not application code that could be skipped)
+- Fee receipts, vouchers and the fee ledger page keep working unmodified — they read `D.fees` / `D.feePayments`, which are now database-backed
+
+Verified with `e2e/test_module2.js` — 41/41 pass against a real MySQL database, twice in a row with no reset in between, covering scholarship math, concessions, both instalment-plan flows, in-order enforcement, overpayment rejection, overdue transitions, cascading delete, and role permissions. Two real bugs were found and fixed while building this: a Django/MySQL version incompatibility (see `requirements.txt` note below), and a stale-cache bug where a fee's payment history could show fewer entries than actually existed in the database after the 2nd+ payment.
+
+**One deliberate scope boundary:** a Fee record linked to a Disciplinary Fine (i.e. billed *through* the Fines module) stays **local-only** for now — the Fines module itself isn't migrated yet, and `'Fine'` isn't a valid category on the backend `Fee` model. Every other fee (Tuition, Admission, Transport, Other) is fully database-backed. This will be resolved when Fines is migrated.
 
 ### ⏳ Not yet connected — still local/in-memory only
 Add / Edit / Delete on these pages currently only changes what you see in the browser tab; **refreshing the page reloads the real database and discards the change**, the same way the old localStorage version reset if you cleared your browser data:
 
-- Students, Fees (incl. partial payments & instalment plans), Transport Fee, Disciplinary Fines, Salaries, Expenses, Budget
+- Transport Fee, Disciplinary Fines, Salaries, Expenses, Budget
 
-**Why these are separate, larger pieces of work:** they're not simple CRUD — e.g. adding a Student also auto-creates a Fee record with scholarship/discount math and optional instalment plans, all in one client-side function. Wiring these up properly (without silently dropping the scholarship/instalment feature) needs a few backend model fields added first. This is the planned next phase.
-
-**What this means for you today:** you can demo login, roles, user management, and a dashboard/reports view of real seeded data end-to-end. Don't rely on Add/Edit/Delete on the modules listed above surviving a page refresh yet.
+**What this means for you today:** Login, roles, user management, Students, and Fees (including scholarships, concessions, instalments and payments) are fully real and tested end-to-end. Don't rely on Add/Edit/Delete on the modules listed above surviving a page refresh yet.
 
 ---
 
@@ -227,6 +239,9 @@ GET                    /api/audit-log/            (admin + accountant)
 ```
 /api/finance/fees/                          ?status=&category=&student=&academic_year=
 /api/finance/fees/{id}/record-payment/      POST {amount, date, method, receipt_no}
+/api/finance/fees/create-installment-plan/  POST — mode:'auto' (equal split) or 'custom' (admin-typed amounts)
+/api/finance/fees/quote-discount/           POST — live scholarship/concession preview, same math create() uses
+/api/finance/fees/student-ledger/           GET ?student=<id> — full fee history + Gross/Relief/Net/Paid/Remaining summary
 
 /api/finance/routes/
 /api/finance/transport-fees/                ?status=&student=&route=

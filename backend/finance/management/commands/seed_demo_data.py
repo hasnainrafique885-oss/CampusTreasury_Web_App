@@ -165,7 +165,7 @@ class Command(BaseCommand):
             Fee.objects.get_or_create(
                 student=stu, semester=sem, amount=amt, category=category, due_date=due,
                 defaults=dict(
-                    fee_id=fee_id, paid_amount=amt if status == 'Paid' else 0, method=method,
+                    fee_id=fee_id, gross_amount=amt, paid_amount=amt if status == 'Paid' else 0, method=method,
                     receipt_no=receipt, status=status, paid_date=paid_date, academic_year=year,
                 ),
             )

@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
+from academics.models import AcademicYear, Student
 from .models import (
     Budget, Expense, ExpenseCategory, Fee, FeePayment, Fine,
     InstitutionSettings, ManualTransaction, Route, Salary,
@@ -18,24 +21,89 @@ class FeeSerializer(serializers.ModelSerializer):
     payments = FeePaymentSerializer(many=True, read_only=True)
     balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     student_name = serializers.CharField(source='student.name', read_only=True)
+    student_roll_no = serializers.CharField(source='student.roll_no', read_only=True)
 
     class Meta:
         model = Fee
         fields = [
-            'id', 'fee_id', 'student', 'student_name', 'semester', 'amount', 'paid_amount',
-            'balance', 'category', 'method', 'receipt_no', 'status', 'due_date', 'paid_date',
-            'is_installment', 'installment_part', 'installment_total', 'plan_id',
-            'academic_year', 'payments', 'created_at', 'updated_at',
+            'id', 'fee_id', 'student', 'student_name', 'student_roll_no', 'semester', 'amount',
+            'paid_amount', 'balance', 'category', 'method', 'receipt_no', 'status', 'due_date',
+            'paid_date', 'is_installment', 'installment_part', 'installment_total', 'plan_id',
+            'gross_amount', 'scholarship_amount', 'scholarship_label', 'concession_amount',
+            'discount_reason', 'academic_year', 'payments', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'fee_id', 'status', 'paid_amount', 'created_at', 'updated_at']
+        # amount/gross_amount/scholarship_*/concession_* are ALL server-computed (see
+        # finance.services.compute_fee_discount) — never accepted directly from a client
+        # write; creation goes through FeeViewSet.create()'s CreateFeeSerializer instead.
+        read_only_fields = [
+            'id', 'fee_id', 'status', 'paid_amount', 'amount', 'gross_amount',
+            'scholarship_amount', 'scholarship_label', 'concession_amount',
+            'created_at', 'updated_at',
+        ]
 
 
 class RecordPaymentSerializer(serializers.Serializer):
     """Shared shape for the 'record-payment' action on Fee and TransportFee."""
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
     date = serializers.DateField()
     method = serializers.CharField(required=False, allow_blank=True)
     receipt_no = serializers.CharField(required=False, allow_blank=True)
+
+
+class CreateFeeSerializer(serializers.Serializer):
+    """Input shape for FeeViewSet.create() — a single non-instalment fee.
+    The client supplies the GROSS amount; net/scholarship/concession are
+    computed server-side (see finance.services.compute_fee_discount)."""
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    gross_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    concession_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False, default=0)
+    discount_reason = serializers.CharField(required=False, allow_blank=True, default='')
+    due_date = serializers.DateField(required=False, allow_null=True)
+    category = serializers.ChoiceField(choices=Fee.Category.choices, required=False, default=Fee.Category.TUITION)
+    semester = serializers.CharField(required=False, allow_blank=True, default='')
+    academic_year = serializers.PrimaryKeyRelatedField(queryset=AcademicYear.objects.all(), required=False, allow_null=True)
+
+    def validate(self, attrs):
+        # Mirrors saveFee()'s guard: a concession with no stated reason is
+        # rejected outright, not silently stored with a blank reason.
+        if attrs.get('concession_amount') and not (attrs.get('discount_reason') or '').strip():
+            raise serializers.ValidationError({'discount_reason': 'Please write the reason for the concession'})
+        return attrs
+
+
+class InstallmentInputSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    due_date = serializers.DateField()
+
+
+class InstallmentPlanSerializer(serializers.Serializer):
+    """Input shape for FeeViewSet.create_installment_plan() — see the two
+    modes documented on that view."""
+    mode = serializers.ChoiceField(choices=['auto', 'custom'], default='auto')
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    gross_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    concession_amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False, default=0)
+    discount_reason = serializers.CharField(required=False, allow_blank=True, default='')
+    category = serializers.ChoiceField(choices=Fee.Category.choices, required=False, default=Fee.Category.TUITION)
+    semester = serializers.CharField(required=False, allow_blank=True, default='')
+    academic_year = serializers.PrimaryKeyRelatedField(queryset=AcademicYear.objects.all(), required=False, allow_null=True)
+    # auto mode
+    due_date = serializers.DateField(required=False, allow_null=True)
+    inst_count = serializers.IntegerField(required=False, min_value=2, max_value=24)
+    interval_months = serializers.IntegerField(required=False, min_value=1, max_value=12)
+    # custom mode
+    installments = InstallmentInputSerializer(many=True, required=False)
+
+    def validate(self, attrs):
+        if attrs.get('concession_amount') and not (attrs.get('discount_reason') or '').strip():
+            raise serializers.ValidationError({'discount_reason': 'Please write the reason for the concession'})
+        if attrs.get('mode') == 'custom':
+            if not attrs.get('installments'):
+                raise serializers.ValidationError({'installments': 'Required when mode="custom"'})
+        else:
+            if not attrs.get('due_date') or not attrs.get('inst_count') or not attrs.get('interval_months'):
+                raise serializers.ValidationError('due_date, inst_count and interval_months are required when mode="auto"')
+        return attrs
 
 
 class RouteSerializer(serializers.ModelSerializer):
