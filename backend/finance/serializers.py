@@ -175,12 +175,16 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 
 class ExpenseSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    # Exposes the human-readable label (e.g. '2024-25') alongside the FK id —
+    # the frontend's D.expenses[].year needs the label, not the pk, to match
+    # against D.activeYear (see activeExpenses() in script.js).
+    academic_year_label = serializers.CharField(source='academic_year.label', read_only=True, default=None)
 
     class Meta:
         model = Expense
         fields = [
             'id', 'description', 'category', 'category_name', 'amount', 'date',
-            'vendor', 'approver', 'status', 'academic_year', 'created_at',
+            'vendor', 'approver', 'status', 'academic_year', 'academic_year_label', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -188,10 +192,14 @@ class ExpenseSerializer(serializers.ModelSerializer):
 class BudgetSerializer(serializers.ModelSerializer):
     spent = serializers.SerializerMethodField()
     remaining = serializers.SerializerMethodField()
+    # Same reasoning as ExpenseSerializer.academic_year_label above — Budget's
+    # academic_year is mandatory, so this is never actually null, but stays
+    # consistent with the Expense field name.
+    academic_year_label = serializers.CharField(source='academic_year.label', read_only=True, default=None)
 
     class Meta:
         model = Budget
-        fields = ['id', 'department', 'allocated', 'expense_categories', 'academic_year', 'spent', 'remaining']
+        fields = ['id', 'department', 'allocated', 'expense_categories', 'academic_year', 'academic_year_label', 'spent', 'remaining']
 
     def get_spent(self, obj):
         from django.db.models import Sum

@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════
-   CampusTreasury — Django REST API integration (Modules 1 & 2)
+   CampusTreasury — Django REST API integration (Modules 1, 2 & 3)
    ══════════════════════════════════════════════════════════════════
    Module 1 — Auth, Roles, Users, initial data load:
      ✅ Login / Logout / JWT session
@@ -29,11 +29,37 @@
         valid category on the backend Fee model. See the Module 2
         section below for the exact boundary.
 
+   Module 3 — Transport Fee + Route Master, Disciplinary Fines,
+   Salaries, Expenses (+ categories) and Budget:
+     ✅ Route Master — Add / Edit / Delete persisted to the database
+     ✅ Transport Fee — assign / edit / delete / collect (partial)
+        payment, all persisted; paid/remaining/status are DERIVED
+        server-side exactly like Module 2's Fee module
+     ✅ Disciplinary Fines — Add / Edit / Delete / Mark Paid persisted
+     ✅ Salaries — process / edit / delete / mark paid persisted
+     ✅ Expense Categories + Expenses — Add / Delete persisted
+     ✅ Budget — Add / Edit / Delete persisted, `spent`/`remaining`
+        computed server-side from real Expense records (never stored,
+        so it can't drift)
+     ⏳ Two deliberate scope boundaries, called out explicitly rather
+        than silently degraded:
+        1. A Fine's auto-merge into a student's next Fee payment
+           (syncFeeForFine / checkPendingFines) stays LOCAL-ONLY —
+           same as Module 2's boundary: 'Fine' still isn't a valid
+           Fee.category on the backend. The Fine record itself (and
+           Mark Paid / Delete) IS persisted; only the auto-generated
+           "Paid via fee" Fee row is local-only.
+        2. A Transport Fee's route must be picked from Route Master —
+           the backend has no free-text "custom route name" field on
+           TransportFee (only a Route foreign key), so the old
+           type-your-own-route option is no longer available once a
+           record is meant to be saved to the database.
+
    NOT yet in scope (still local-only / in-memory):
-     ⏳ Transport Fee / Fines / Salaries / Expenses / Budget "Add /
-        Edit / Delete" forms still only mutate the local D object.
-        Refreshing the page reloads real DB data and discards any such
-        local-only change.
+     ⏳ Manual ledger transactions (the "+ Add Transaction" button on
+        the Transactions page) — a `/finance/manual-transactions/`
+        endpoint exists on the backend but wasn't part of this pass;
+        every other module above is fully wired.
 
    This file is loaded AFTER script.js. It works by re-declaring a
    handful of the same top-level `function name(){...}` names — in
@@ -184,10 +210,16 @@ function apiFeePaymentsToD(fee, feeId, roll, planId, instPart) {
   }));
 }
 
-function apiTransportFeeToD(t, rollByPk) {
+function apiTransportFeeToD(t, rollByPk, routeIdByPk) {
   return {
     tfId: t.tf_id, student: t.student_name, roll: rollByPk[t.student] || '',
-    route: t.route_name || '', routeId: t.route,
+    // t.route is the Route's numeric pk (the FK); Route Master itself is
+    // keyed by the human route_id string ('RT-3'), which is what
+    // script.js's own route-matching logic (openEditTransportFee,
+    // fillTfRouteDropdown selection, etc.) expects in `.routeId` — so this
+    // resolves pk -> route_id via the lookup map, rather than leaking the
+    // raw pk under a field named like the string code.
+    route: t.route_name || '', routeId: (routeIdByPk && routeIdByPk[t.route]) || '',
     amt: Number(t.amount) || 0, paidAmt: Number(t.paid_amount) || 0,
     date: t.paid_date || '-', method: t.method || '-', receipt: t.receipt_no || '-',
     status: t.status, dueDate: t.due_date || '',
@@ -221,7 +253,10 @@ function apiExpenseToD(e) {
   return {
     desc: e.description, cat: e.category_name, amt: Number(e.amount) || 0,
     date: e.date, vendor: e.vendor, approver: e.approver, status: e.status,
-    year: '2024-25', _pk: e.id,
+    // Module 3 — was hard-coded '2024-25' while Expenses were still local-only.
+    // Now reads the real linked AcademicYear's label so activeExpenses()'s
+    // `e.year===D.activeYear` filter keeps working once more than one year exists.
+    year: e.academic_year_label || D.activeYear, _pk: e.id,
   };
 }
 
@@ -229,7 +264,8 @@ function apiBudgetToD(b, catNameById) {
   return {
     dept: b.department, allocated: Number(b.allocated) || 0, spent: Number(b.spent) || 0,
     expCats: (b.expense_categories || []).map(id => catNameById[id]).filter(Boolean),
-    year: '2024-25', _pk: b.id,
+    // Same reasoning as apiExpenseToD.year above.
+    year: b.academic_year_label || D.activeYear, _pk: b.id,
   };
 }
 
@@ -284,14 +320,19 @@ function apiUserToFrontend(u) {
    records. Called once right after a successful login.
    ══════════════════════════════════════════════════════════════════ */
 async function loadAllDataFromAPI() {
-  const [studentsRaw, employeesRaw, classesRaw, routesRaw, catsRaw, settingsRaw] = await Promise.all([
+  const [studentsRaw, employeesRaw, classesRaw, routesRaw, catsRaw, settingsRaw, yearsRaw] = await Promise.all([
     fetchAllPages('/academics/students/'),
     fetchAllPages('/hr/employees/'),
     fetchAllPages('/academics/classes/'),
     fetchAllPages('/finance/routes/'),
     fetchAllPages('/finance/expense-categories/'),
     apiFetch('/finance/settings/'),
+    fetchAllPages('/academics/academic-years/'),
   ]);
+  // Warm the label -> pk cache used by ensureAcademicYearPk() (Module 3 —
+  // Expenses/Budget need a real AcademicYear pk on write, D.activeYear is
+  // only ever the display label).
+  yearsRaw.forEach(y => { _ayCache[y.label] = y.id; });
 
   const students = studentsRaw.map(apiStudentToD);
   const rollByStudentPk = {};
@@ -308,6 +349,8 @@ async function loadAllDataFromAPI() {
 
   const catNameById = {};
   catsRaw.forEach(c => { catNameById[c.id] = c.name; });
+  const routeIdByPk = {};
+  routesRaw.forEach(r => { routeIdByPk[r.id] = r.route_id; });
 
   const fees_and_payments = buildFeesAndPayments(feesRaw, rollByStudentPk);
   const fees = fees_and_payments.fees;
@@ -319,7 +362,7 @@ async function loadAllDataFromAPI() {
   D.departments = [...new Set(D.employees.map(e => e.dept).filter(Boolean))];
   D.fees = fees;
   D.feePayments = feePayments;
-  D.transportFees = tfRaw.map(t => apiTransportFeeToD(t, rollByStudentPk));
+  D.transportFees = tfRaw.map(t => apiTransportFeeToD(t, rollByStudentPk, routeIdByPk));
   D.salaries = salariesRaw.map(apiSalaryToD);
   D.expCategories = catsRaw.map(apiExpenseCategoryToD);
   D.expenses = expensesRaw.map(apiExpenseToD);
@@ -965,3 +1008,580 @@ async function saveFeeInstalments() {
   toast(`✅ Fee structure saved — ${count} instalments created!`);
   _feeSelectedStu = null;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   MODULE 3 — Transport Fee + Route Master, Disciplinary Fines,
+   Salaries, Expenses (+ categories) and Budget. See the file header
+   for the two deliberate scope boundaries (Fine↔Fee auto-merge, and
+   Transport Fee's route-must-come-from-Route-Master rule).
+   ══════════════════════════════════════════════════════════════════ */
+
+/* label -> AcademicYear pk, warmed by loadAllDataFromAPI(). Expenses
+   and Budget both need a real pk on write; D.activeYear is only ever
+   the display label ('2024-25'), never the pk. */
+let _ayCache = {};
+
+async function ensureAcademicYearPk(label) {
+  if (!label) return null;
+  if (_ayCache[label]) return _ayCache[label];
+  try {
+    const years = await fetchAllPages('/academics/academic-years/');
+    years.forEach(y => { _ayCache[y.label] = y.id; });
+  } catch (e) { /* fall through to the create attempt below */ }
+  if (_ayCache[label]) return _ayCache[label];
+  // No such year on the server yet (e.g. addYear() only ever pushed to the
+  // local D.years array before) — create it so the write below has
+  // something real to point at.
+  const created = await apiFetch('/academics/academic-years/', {
+    method: 'POST', body: JSON.stringify({ label, is_active: false }),
+  });
+  _ayCache[label] = created.id;
+  return created.id;
+}
+
+function pkForEmployeeName(name) {
+  const e = D.employees.find(x => x.name === name);
+  return e ? e._pk : null;
+}
+function pkForRouteId(routeId) {
+  if (!routeId) return null;
+  const r = D.routes.find(x => x.routeId === routeId);
+  return r ? r._pk : null;
+}
+function pkForExpCategoryName(name) {
+  const c = D.expCategories.find(x => x.name === name);
+  return c ? c._pk : null;
+}
+
+/* Re-fetches every Module 3 finance list from the database and replaces
+   D's copies, then rebuilds the unified ledger — the single source of
+   truth after any of this section's mutations, same philosophy as
+   Module 2's refreshStudentsAndFees(). D.students is NOT re-fetched here
+   (nothing in this section writes to Students) — the roll lookup below
+   reads whatever D.students already holds. */
+async function refreshModule3Finance() {
+  const [routesRaw, tfRaw, finesRaw, salariesRaw, catsRaw, expensesRaw, budgetsRaw] = await Promise.all([
+    fetchAllPages('/finance/routes/'),
+    fetchAllPages('/finance/transport-fees/'),
+    fetchAllPages('/finance/fines/'),
+    fetchAllPages('/finance/salaries/'),
+    fetchAllPages('/finance/expense-categories/'),
+    fetchAllPages('/finance/expenses/'),
+    fetchAllPages('/finance/budgets/'),
+  ]);
+  const rollByStudentPk = {};
+  D.students.forEach(s => { rollByStudentPk[s._pk] = s.roll; });
+  const catNameById = {};
+  catsRaw.forEach(c => { catNameById[c.id] = c.name; });
+  const routeIdByPk = {};
+  routesRaw.forEach(r => { routeIdByPk[r.id] = r.route_id; });
+
+  D.routes = routesRaw.map(apiRouteToD);
+  D.transportFees = tfRaw.map(t => apiTransportFeeToD(t, rollByStudentPk, routeIdByPk));
+  D.fines = finesRaw.map(f => apiFineToD(f, rollByStudentPk));
+  D.salaries = salariesRaw.map(apiSalaryToD);
+  D.expCategories = catsRaw.map(apiExpenseCategoryToD);
+  D.expenses = expensesRaw.map(apiExpenseToD);
+  D.budget = budgetsRaw.map(b => apiBudgetToD(b, catNameById));
+
+  try { buildTx(); } catch (e) { console.warn('buildTx after Module 3 refresh failed:', e); }
+}
+
+/* ── Route Master ─────────────────────────────────────────────────── */
+
+async function saveRoute() {
+  if (!requirePerm('canEdit', 'save route')) return;
+  const editIdx = parseInt($('rt-editIdx').value);
+  const isEdit = editIdx >= 0;
+  const name = $('rt-name').value.trim();
+  if (!name) { toast('❌ Route name is required'); return; }
+  const vehicleNo = $('rt-vehicle').value.trim();
+  const driverName = $('rt-driver').value.trim();
+  const driverPhone = $('rt-phone').value.trim();
+  const capacity = parseInt($('rt-capacity').value) || 0;
+  const monthlyFee = parseInt($('rt-fee').value) || 0;
+  if (!monthlyFee || monthlyFee < 0) { toast('❌ Valid monthly fee is required'); return; }
+  const status = $('rt-status').value || 'Active';
+  const fitnessExpiry = ($('rt-fitness') || {}).value || '';
+  const insuranceExpiry = ($('rt-insurance') || {}).value || '';
+
+  const payload = {
+    name, vehicle_no: vehicleNo, driver_name: driverName, driver_phone: driverPhone,
+    capacity, monthly_fee: monthlyFee, status,
+    fitness_expiry: fitnessExpiry || null, insurance_expiry: insuranceExpiry || null,
+  };
+
+  try {
+    if (isEdit) {
+      const pk = D.routes[editIdx]._pk;
+      await apiFetch(`/finance/routes/${pk}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      auditLog('action', 'Route updated: ' + name);
+    } else {
+      await apiFetch('/finance/routes/', { method: 'POST', body: JSON.stringify(payload) });
+      auditLog('action', 'Route added: ' + name);
+    }
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  await refreshModule3Finance();
+  closeMo('addRoute');
+  rRouteMaster();
+  rTransportFee();
+  toast(isEdit ? '✅ Route updated' : '✅ Route "' + name + '" added');
+}
+
+async function delRoute(idx) {
+  if (!requirePerm('canEdit', 'delete route')) return;
+  const r = D.routes[idx];
+  if (!r) return;
+  const cnt = routeUsageCount(r.routeId);
+  if (!confirm('Delete route "' + r.name + '"?' + (cnt ? ' It is currently used by ' + cnt + ' transport fee record(s) — deleting it will unlink those records\' route (their fee amount is unaffected).' : ''))) return;
+  try {
+    await apiFetch(`/finance/routes/${r._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  auditLog('action', 'Route deleted: ' + r.name);
+  await refreshModule3Finance();
+  rRouteMaster();
+  rTransportFee();
+  toast('Route deleted');
+}
+
+/* ── Transport Fee ────────────────────────────────────────────────── */
+
+async function saveTransportFee() {
+  if (!requirePerm('canEdit', 'save transport fee')) return;
+  const editIdx = parseInt($('tf-editIdx').value);
+  const isEdit = editIdx >= 0;
+  const stuName = $('tf-name').value || '';
+  const stuRoll = $('tf-roll').value || '';
+  if (!stuName || !stuRoll) { toast('❌ Please select a student'); return; }
+  const routeSel = $('tf-route').value;
+  const selectedRoute = routeSel && routeSel !== '__custom__' ? D.routes.find(r => r.routeId === routeSel) : null;
+  if (!selectedRoute) {
+    toast('❌ Please pick a route from Route Master — now that Transport Fee is connected to the database, a free-typed custom route name can no longer be saved. Add the route in Route Master first, then select it here.');
+    return;
+  }
+  const amt = parseInt($('tf-amt').value) || 0;
+  if (!amt || amt < 0) { toast('❌ Valid amount is required'); return; }
+  const due = $('tf-due').value;
+  if (!due) { toast('❌ Due date is required'); return; }
+  const statusSel = $('tf-status').value;
+
+  const studentPk = pkForRoll(stuRoll);
+  if (!studentPk) { toast('❌ Student not found — please re-select the student'); return; }
+
+  const payload = { student: studentPk, route: selectedRoute._pk, amount: amt, due_date: due };
+
+  let saved;
+  try {
+    if (isEdit) {
+      const pk = D.transportFees[editIdx]._pk;
+      saved = await apiFetch(`/finance/transport-fees/${pk}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      // Mirrors the old "flip the dropdown straight to Paid" convenience —
+      // one full-amount payment if nothing's been collected yet.
+      if (statusSel === 'Paid' && saved.status !== 'Paid') {
+        const remaining = amt - Number(saved.paid_amount || 0);
+        if (remaining > 0) {
+          saved = await apiFetch(`/finance/transport-fees/${pk}/record-payment/`, {
+            method: 'POST', body: JSON.stringify({ amount: remaining, date: ymd(new Date()), method: 'Cash' }),
+          });
+        }
+      }
+      auditLog('action', 'Transport fee updated: ' + stuName);
+    } else {
+      saved = await apiFetch('/finance/transport-fees/', { method: 'POST', body: JSON.stringify(payload) });
+      if (statusSel === 'Paid') {
+        saved = await apiFetch(`/finance/transport-fees/${saved.id}/record-payment/`, {
+          method: 'POST', body: JSON.stringify({ amount: amt, date: ymd(new Date()), method: 'Cash' }),
+        });
+      }
+      auditLog('action', 'Transport fee assigned: ' + stuName + ' — Rs ' + amt);
+    }
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  await refreshModule3Finance();
+  rTransportFee(); rDash(); rStudents();
+  closeMo('addTransportFee');
+  transportDeselectStu();
+  toast(isEdit ? '✅ Transport fee updated' : '✅ Transport fee of Rs ' + fmt(amt) + ' assigned to ' + stuName);
+}
+
+async function saveCollectTransportFee() {
+  if (!requirePerm('canEdit', 'collect transport fee')) return;
+  const t = D.transportFees[_tfCollectIdx];
+  if (!t) { toast('Transport fee record not found'); closeMo('collectTf'); return; }
+  const remaining = tfRemainingAmt(t);
+  const amt = parseInt($('ctf-amt').value) || 0;
+  if (!amt || amt <= 0) { toast('❌ Valid amount is required'); return; }
+  if (amt > remaining) { toast('❌ Amount can\'t exceed the remaining balance of Rs ' + fmt(remaining)); return; }
+  const method = $('ctf-method').value || 'Cash';
+  const date = $('ctf-date').value || ymd(new Date()); // date input is already ISO
+
+  let saved;
+  try {
+    saved = await apiFetch(`/finance/transport-fees/${t._pk}/record-payment/`, {
+      method: 'POST', body: JSON.stringify({ amount: amt, date, method }),
+    });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+
+  const fullyPaid = saved.status === 'Paid';
+  auditLog('action', 'Transport fee payment collected: ' + t.student + ' — Rs ' + amt + (fullyPaid ? ' (fully paid)' : ' (partial)'));
+  await refreshModule3Finance();
+  rTransportFee(); rDash(); rStudents();
+  closeMo('collectTf');
+  const stillDue = Math.max(0, Number(saved.amount) - Number(saved.paid_amount || 0));
+  toast('✅ Rs ' + fmt(amt) + ' collected from ' + t.student + (fullyPaid ? '' : ' · Rs ' + fmt(stillDue) + ' still due'));
+}
+
+async function delTransportFee(idx) {
+  if (!requirePerm('canEdit', 'delete transport fee')) return;
+  const t = D.transportFees[idx];
+  if (!t) return;
+  if (!confirm('Delete transport fee record for ' + t.student + '?')) return;
+  try {
+    await apiFetch(`/finance/transport-fees/${t._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  auditLog('action', 'Transport fee deleted: ' + t.student);
+  await refreshModule3Finance();
+  rTransportFee(); rDash();
+  toast('Transport fee record deleted');
+}
+
+/* ── Disciplinary Fines ───────────────────────────────────────────── */
+
+async function saveFine() {
+  if (!requirePerm('canEdit', 'save fine')) return;
+  const editIdx = parseInt($('fineEditIdx').value);
+  const isEdit = editIdx >= 0;
+  const stuName = $('fn-name').value || '';
+  const stuRoll = $('fn-roll').value || '';
+  if (!stuName || !stuRoll) { toast('❌ Please select a student'); return; }
+  const reasonSel = $('fn-reason').value;
+  const reason = reasonSel === 'Other' ? ($('fn-reason-other').value.trim() || 'Other') : reasonSel;
+  const amt = parseInt($('fn-amt').value) || 0;
+  if (!amt || amt < 0) { toast('❌ Valid fine amount is required'); return; }
+  const date = $('fn-date').value || isoDate();
+  const status = $('fn-status').value;
+
+  const studentPk = pkForRoll(stuRoll);
+  if (!studentPk) { toast('❌ Student not found — please re-select the student'); return; }
+
+  const payload = { student: studentPk, reason, amount: amt, date, status };
+
+  let saved;
+  try {
+    if (isEdit) {
+      const pk = D.fines[editIdx]._pk;
+      saved = await apiFetch(`/finance/fines/${pk}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      auditLog('action', 'Fine updated: ' + stuName + ' — ' + reason);
+    } else {
+      saved = await apiFetch('/finance/fines/', { method: 'POST', body: JSON.stringify(payload) });
+      auditLog('action', 'Fine issued: ' + stuName + ' — ' + reason + ' (Rs ' + amt + ')');
+    }
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  await refreshModule3Finance();
+  // Fine ↔ Fee auto-merge stays LOCAL-ONLY — see file header boundary #1.
+  syncFeeForFine({ fineId: saved.fine_id, student: stuName, roll: stuRoll, reason, amt, date, status: saved.status });
+  buildTx(); rFines(); rFees(); rTx(); rDash();
+  closeMo('addFine');
+  fineDeselectStu();
+  toast(isEdit ? '✅ Fine updated' : '✅ Fine of Rs ' + fmt(amt) + ' added for ' + stuName + (status === 'Pending' ? ' — will be added to their next fee payment automatically' : ''));
+}
+
+async function markFinePaid(idx) {
+  if (!requirePerm('canEdit', 'mark fine paid')) return;
+  const f = D.fines[idx];
+  if (!f) return;
+  try {
+    await apiFetch(`/finance/fines/${f._pk}/`, { method: 'PATCH', body: JSON.stringify({ status: 'Paid' }) });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  await refreshModule3Finance();
+  syncFeeForFine({ fineId: f.fineId, student: f.student, roll: f.roll, reason: f.reason, amt: f.amt, date: f.date, status: 'Paid' });
+  auditLog('action', 'Fine marked Paid: ' + f.student + ' — ' + f.reason);
+  buildTx(); rFines(); rFees(); rTx(); rDash();
+  toast('✅ Fine marked as Paid');
+}
+
+async function delFine(idx) {
+  if (!requirePerm('canEdit', 'delete fine')) return;
+  const f = D.fines[idx];
+  if (!f) return;
+  if (!confirm('Delete this fine for ' + f.student + '?')) return;
+  try {
+    await apiFetch(`/finance/fines/${f._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  // Local-only linked-fee cleanup — see saveFine()'s boundary note above.
+  const linkedIdx = D.fees.findIndex(x => x.linkedFineId === f.fineId && feePaidAmt(x) === 0);
+  if (linkedIdx >= 0) D.fees.splice(linkedIdx, 1);
+  auditLog('action', 'Fine deleted: ' + f.student + ' — ' + f.reason);
+  await refreshModule3Finance();
+  buildTx(); rFines(); rFees(); rTx(); rDash();
+  toast('Fine deleted');
+}
+
+/* ── Salaries ─────────────────────────────────────────────────────── */
+
+async function saveSal() {
+  if (!requirePerm('canEdit', 'save salary')) return;
+  const editIdx = parseInt($('salEditIdx').value);
+  const isEdit = editIdx >= 0;
+  const n = $('sln-sel').value.trim();
+  if (!n) { toast('Please select an employee'); return; }
+  const linkedEmp = D.employees.find(e => e.name === n);
+  if (!linkedEmp) { toast('❌ Employee not found — please re-select'); return; }
+  const basicRaw = parseInt($('slb').value), allowRaw = parseInt($('sla').value), deductRaw = parseInt($('sld2').value);
+  if (basicRaw < 0) { toast('❌ Basic salary cannot be negative'); return; }
+  if (allowRaw < 0) { toast('❌ Allowances cannot be negative'); return; }
+  if (deductRaw < 0) { toast('❌ Deductions cannot be negative'); return; }
+  const basicVal = basicRaw || 60000;
+  const allowVal = allowRaw || 10000;
+  const grossVal = basicVal + allowVal;
+  let deductVal = deductRaw || 0;
+  let deductCapped = false;
+  if (deductVal > grossVal) { deductVal = grossVal; deductCapped = true; }
+  const month = $('slm').value || getCurrentMonthLabel();
+  const status = $('slst').value || 'Paid';
+
+  const payload = { employee: linkedEmp._pk, month, basic: basicVal, allowance: allowVal, deduction: deductVal, status };
+  if (status === 'Paid') payload.paid_date = ymd(new Date());
+
+  let saved;
+  try {
+    if (isEdit) {
+      const pk = D.salaries[editIdx]._pk;
+      saved = await apiFetch(`/finance/salaries/${pk}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      auditLog('action', 'Salary updated: ' + n + ' (' + saved.sal_id + ')');
+    } else {
+      saved = await apiFetch('/finance/salaries/', { method: 'POST', body: JSON.stringify(payload) });
+      auditLog('action', 'Salary added: ' + n + ' (' + saved.sal_id + ')');
+    }
+  } catch (e) {
+    // Surfaces the backend's unique_together(employee, month) violation
+    // verbatim, e.g. re-processing the same employee's same month twice.
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  if (deductCapped) toast('⚠️ Deduction exceeded gross salary — capped at Rs ' + fmt(grossVal) + ' (net pay set to Rs 0)');
+  await refreshModule3Finance();
+  rSalaries(); rTx(); rDash(); closeMo('addSal');
+  toast(isEdit ? 'Salary record updated!' : 'Salary processed! ID: ' + saved.sal_id);
+}
+
+async function markSalPaid(i) {
+  if (!requirePerm('canEdit', 'mark salary paid')) return;
+  const s = D.salaries[i];
+  if (!s) return;
+  try {
+    await apiFetch(`/finance/salaries/${s._pk}/mark-paid/`, { method: 'POST', body: JSON.stringify({}) });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  auditLog('action', 'Salary paid: ' + s.name);
+  await refreshModule3Finance();
+  rSalaries(); rTx(); rDash();
+  toast('Salary marked as Paid');
+}
+
+async function delSal(i) {
+  if (!requirePerm('canDelete', 'delete salary')) return;
+  const s = D.salaries[i];
+  if (!s) return;
+  if (!confirm('Delete this salary record?')) return;
+  try {
+    await apiFetch(`/finance/salaries/${s._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  auditLog('action', 'Salary deleted: ' + s.name);
+  await refreshModule3Finance();
+  rSalaries(); rDash();
+  toast('Salary record deleted');
+}
+
+/* ── Expense Categories ───────────────────────────────────────────── */
+
+async function addExpCat() {
+  const name = ($('nc-name') || {}).value.trim();
+  const icon = ($('nc-icon') || {}).value.trim() || '📌';
+  if (!name) { toast('Please enter a category name'); return; }
+  if (D.expCategories.find(c => c.name === name)) { toast('This category already exists'); return; }
+  const colors = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316'];
+  const color = colors[D.expCategories.length % colors.length];
+  try {
+    await apiFetch('/finance/expense-categories/', { method: 'POST', body: JSON.stringify({ name, icon, color, budget: 0 }) });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+  $('nc-name').value = ''; $('nc-icon').value = '';
+  await refreshModule3Finance();
+  _renderCatList();
+  _syncCatDropdowns();
+  rExpenses();
+  toast('✅ ' + name + ' added');
+}
+
+async function delExpCat(i) {
+  const cat = D.expCategories[i];
+  const inUse = D.expenses.some(e => e.cat === cat.name);
+  if (inUse) { toast('⚠️ ' + cat.name + ' is used in ' + D.expenses.filter(e => e.cat === cat.name).length + ' expense(s) — remove those first'); return; }
+  if (!confirm('Delete: ' + cat.name + '?')) return;
+  try {
+    await apiFetch(`/finance/expense-categories/${cat._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  await refreshModule3Finance();
+  _renderCatList();
+  _syncCatDropdowns();
+  rExpenses();
+  toast('Category deleted');
+}
+
+/* ── Expenses ─────────────────────────────────────────────────────── */
+
+async function saveExp() {
+  if (!requirePerm('canEdit', 'save expense')) return;
+  const d = $('xd').value.trim(); const a = $('xa').value.trim();
+  if (!d || !a) { toast('Description and Amount are required'); return; }
+  if (isNaN(parseInt(a)) || parseInt(a) < 0) { toast('❌ Expense amount cannot be negative'); return; }
+  const catName = $('xc').value;
+  const catPk = pkForExpCategoryName(catName);
+  if (!catPk) { toast('❌ Please pick a valid expense category'); return; }
+
+  let ayPk;
+  try { ayPk = await ensureAcademicYearPk(D.activeYear); }
+  catch (e) { toast('❌ Could not resolve academic year: ' + e.message); return; }
+
+  const payload = {
+    description: d, category: catPk, amount: parseInt(a) || 5000, date: ymd(new Date()),
+    vendor: ($('xv') || { value: '' }).value.trim() || '', approver: $('xp').value.trim() || 'Admin',
+    status: ($('xs') || { value: 'Approved' }).value || 'Approved', academic_year: ayPk,
+  };
+
+  try {
+    await apiFetch('/finance/expenses/', { method: 'POST', body: JSON.stringify(payload) });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  auditLog('action', 'Expense added: ' + d + ' (' + D.activeYear + ')');
+  await refreshModule3Finance();
+  rExpenses(); rTx(); rDash(); closeMo('addExp'); toast('✅ Expense added!');
+  ['xd', 'xp', 'xv'].forEach(id => { const el = $(id); if (el) el.value = ''; });
+}
+
+async function delExp(i) {
+  if (!requirePerm('canEdit', 'delete expense')) return;
+  const e = D.expenses[i];
+  if (!e) return;
+  if (!confirm('Delete: ' + e.desc + '?')) return;
+  try {
+    await apiFetch(`/finance/expenses/${e._pk}/`, { method: 'DELETE' });
+  } catch (err) {
+    toast('❌ ' + err.message);
+    return;
+  }
+  auditLog('action', 'Expense deleted: ' + e.desc);
+  await refreshModule3Finance();
+  rExpenses(); rTx(); rDash();
+  toast('Expense deleted');
+}
+
+/* ── Budget ───────────────────────────────────────────────────────── */
+
+async function saveBud() {
+  if (!requirePerm('canEdit', 'save budget')) return;
+  const deptInput = $('bud-dept-input');
+  const d = deptInput ? deptInput.value.trim() : '';
+  if (!d) { toast('Please enter a department name'); return; }
+
+  const catSel = $('bud-cat-select');
+  const catVal = catSel ? catSel.value : '';
+  const catPk = catVal ? pkForExpCategoryName(catVal) : null;
+
+  const editIdx = $('bud-edit-idx').value;
+  const isEdit = editIdx !== '' && !isNaN(parseInt(editIdx));
+
+  let ayPk;
+  try { ayPk = await ensureAcademicYearPk(D.activeYear); }
+  catch (e) { toast('❌ Could not resolve academic year: ' + e.message); return; }
+
+  const payload = {
+    department: d, allocated: parseInt($('bda').value) || 100000,
+    expense_categories: catPk ? [catPk] : [], academic_year: ayPk,
+  };
+
+  try {
+    if (isEdit) {
+      const i = parseInt(editIdx);
+      const pk = D.budget[i]._pk;
+      const oldDept = D.budget[i].dept;
+      await apiFetch(`/finance/budgets/${pk}/`, { method: 'PATCH', body: JSON.stringify(payload) });
+      auditLog('action', 'Budget edited: ' + oldDept + ' → ' + d + ' (' + D.activeYear + ')');
+    } else {
+      await apiFetch('/finance/budgets/', { method: 'POST', body: JSON.stringify(payload) });
+      auditLog('action', 'Budget added: ' + d + ' (' + D.activeYear + ')');
+    }
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  await refreshModule3Finance();
+  rBudget(); closeMo('addBud');
+  toast(isEdit ? '✅ Budget updated: ' + d : '✅ Department added for ' + D.activeYear);
+  $('bda').value = 100000; $('bud-edit-idx').value = '';
+}
+
+async function confirmDelBud(i) {
+  if (!requirePerm('canEdit', 'delete budget')) return;
+  if (i < 0 || i >= D.budget.length) { toast('Error: budget item not found'); return; }
+  $('delBud-name').textContent = D.budget[i].dept;
+  const btn = $('delBud-confirm-btn');
+  btn.onclick = async function () {
+    const b = D.budget[i];
+    try {
+      await apiFetch(`/finance/budgets/${b._pk}/`, { method: 'DELETE' });
+    } catch (e) {
+      toast('❌ ' + e.message);
+      return;
+    }
+    auditLog('action', 'Budget deleted: ' + b.dept);
+    await refreshModule3Finance();
+    rBudget();
+    closeMo('delBud');
+    toast('✅ Department deleted');
+  };
+  showMo('delBud');
+}
+function delBud(i) { confirmDelBud(i); }

@@ -189,7 +189,10 @@ class FeeViewSet(viewsets.ModelViewSet):
 class RouteViewSet(viewsets.ModelViewSet):
     queryset = Route.objects.all()
     serializer_class = RouteSerializer
-    permission_classes = [RolePermission]
+    # delRoute() in script.js guards on requirePerm('canEdit', ...), not
+    # 'canDelete' — see EditRolePermission's own docstring, which names this
+    # viewset explicitly. Accountant must be able to delete a route here.
+    permission_classes = [EditRolePermission]
     filterset_fields = ['status']
 
     def perform_create(self, serializer):
@@ -200,7 +203,9 @@ class RouteViewSet(viewsets.ModelViewSet):
 class TransportFeeViewSet(viewsets.ModelViewSet):
     queryset = TransportFee.objects.select_related('student', 'route', 'academic_year').prefetch_related('payments')
     serializer_class = TransportFeeSerializer
-    permission_classes = [RolePermission]
+    # delTransportFee() guards on 'canEdit', not 'canDelete' — same reasoning
+    # as RouteViewSet above.
+    permission_classes = [EditRolePermission]
     filterset_fields = ['status', 'student', 'route', 'academic_year']
     search_fields = ['student__name', 'student__roll_no', 'tf_id']
 
@@ -237,7 +242,8 @@ class TransportFeeViewSet(viewsets.ModelViewSet):
 class FineViewSet(viewsets.ModelViewSet):
     queryset = Fine.objects.select_related('student')
     serializer_class = FineSerializer
-    permission_classes = [RolePermission]
+    # delFine()/markFinePaid() guard on 'canEdit', not 'canDelete'.
+    permission_classes = [EditRolePermission]
     filterset_fields = ['status', 'student']
 
     def perform_create(self, serializer):
@@ -274,7 +280,8 @@ class ExpenseCategoryViewSet(viewsets.ModelViewSet):
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.select_related('category', 'academic_year')
     serializer_class = ExpenseSerializer
-    permission_classes = [RolePermission]
+    # delExp() guards on 'canEdit', not 'canDelete'.
+    permission_classes = [EditRolePermission]
     filterset_fields = ['category', 'status', 'academic_year']
     search_fields = ['description', 'vendor', 'approver']
     ordering_fields = ['date', 'amount']
@@ -283,7 +290,8 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 class BudgetViewSet(viewsets.ModelViewSet):
     queryset = Budget.objects.prefetch_related('expense_categories').select_related('academic_year')
     serializer_class = BudgetSerializer
-    permission_classes = [RolePermission]
+    # confirmDelBud() guards on 'canEdit', not 'canDelete'.
+    permission_classes = [EditRolePermission]
     filterset_fields = ['academic_year']
 
 

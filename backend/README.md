@@ -37,12 +37,28 @@ Verified with `e2e/test_module2.js` — 41/41 pass against a real MySQL database
 
 **One deliberate scope boundary:** a Fee record linked to a Disciplinary Fine (i.e. billed *through* the Fines module) stays **local-only** for now — the Fines module itself isn't migrated yet, and `'Fine'` isn't a valid category on the backend `Fee` model. Every other fee (Tuition, Admission, Transport, Other) is fully database-backed. This will be resolved when Fines is migrated.
 
+### ✅ Module 3 — done, tested against a real MySQL database
+- **Route Master** — Add / Edit / Delete a vehicle/route persisted to the database
+- **Transport Fee** — assign / edit / delete / collect payment (including partial payments), all persisted; paid/remaining amounts and status are **derived server-side**, the same way Module 2's Fee module works
+- **Disciplinary Fines** — Add / Edit / Delete / Mark Paid persisted to the database
+- **Salaries** — process / edit / delete / mark paid persisted, with the server rejecting a duplicate (employee, month) combination outright (409→400)
+- **Expense Categories + Expenses** — Add / Delete persisted; a category still linked to an expense can't be deleted (mirrors the original app's own guard, now enforced consistently since the data is real)
+- **Budget** — Add / Edit / Delete persisted; `spent` / `remaining` are computed **on read** from real Expense records in the linked category for the same academic year — never stored, so they can never drift out of sync
+
+Verified with `e2e/test_module3.js` — 53/53 pass against a real MySQL-compatible database, twice in a row with no reset in between, covering Route Master, Transport Fee (assign/partial/full payment), Fines (issue/mark paid/delete), Salaries (process/mark paid/duplicate rejection), Expense Categories + Expenses (including the category-in-use delete guard), Budget (create/edit/delete with a real linked Expense driving `spent`), and role permissions (Viewer blocked everywhere; Accountant can create/edit/delete all of the above **except** a Salary, matching script.js's own `canEdit` vs `canDelete` checks exactly).
+
+**Two real bugs were found and fixed while wiring this module**, called out here rather than silently patched:
+1. `RouteViewSet` / `TransportFeeViewSet` / `FineViewSet` / `ExpenseViewSet` / `BudgetViewSet` were using `RolePermission` (which requires `can_delete` for a DELETE request) instead of `EditRolePermission` (which only requires `can_edit`) — contradicting both script.js's own permission checks (`delRoute()`, `delTransportFee()`, `delFine()`, `delExp()`, and `confirmDelBud()` all guard on `'canEdit'`, not `'canDelete'`) and `EditRolePermission`'s own docstring, which already named these five viewsets. An Accountant would have been silently blocked (403) from deleting any of these, even though the original local-only app always allowed it. Fixed by switching all five to `EditRolePermission`; `SalaryViewSet` correctly keeps `RolePermission` since `delSal()` really does check `'canDelete'`.
+2. `apiTransportFeeToD()`'s `routeId` field was mapped straight from the API's `route` value — which is the Route's **numeric primary key** — while every place script.js matches a Transport Fee back to its Route Master entry (`openEditTransportFee`, the route dropdown's re-selection logic) compares against the Route's human `route_id` **string** (`'RT-3'`). Loading real data from the database would have silently broken "Edit Transport Fee"'s route re-selection (it would always fall through to the legacy/custom-route branch). Fixed by resolving the numeric pk to the correct `route_id` string via a small pk→route_id lookup map built alongside the existing roll/category lookup maps.
+
+**One deliberate scope boundary**, same spirit as Module 2's Fee/Fine boundary: a Fine's auto-merge into a student's next Fee payment (`syncFeeForFine()` / `checkPendingFines()`) stays **local-only** — `'Fine'` still isn't a valid `Fee.category` on the backend. The Fine record itself (create/edit/delete/mark paid) is fully persisted; only the auto-generated "Paid via fine" Fee row used for the receipt/audit trail is local-only, exactly as before. Similarly, once a Transport Fee is meant to be saved to the database, its route **must** be picked from Route Master — the backend only has a `Route` foreign key, no free-text "custom route name" field, so the old type-your-own-route option no longer persists.
+
 ### ⏳ Not yet connected — still local/in-memory only
-Add / Edit / Delete on these pages currently only changes what you see in the browser tab; **refreshing the page reloads the real database and discards the change**, the same way the old localStorage version reset if you cleared your browser data:
+Add / Edit / Delete on this page currently only changes what you see in the browser tab; **refreshing the page reloads the real database and discards the change**, the same way the old localStorage version reset if you cleared your browser data:
 
-- Transport Fee, Disciplinary Fines, Salaries, Expenses, Budget
+- Manual ledger transactions (the "+ Add Transaction" button on the Transactions page). A `/finance/manual-transactions/` endpoint already exists on the backend for a future pass — it just wasn't part of Modules 1–3.
 
-**What this means for you today:** Login, roles, user management, Students, and Fees (including scholarships, concessions, instalments and payments) are fully real and tested end-to-end. Don't rely on Add/Edit/Delete on the modules listed above surviving a page refresh yet.
+**What this means for you today:** Login, roles, user management, Students, Fees (scholarships, concessions, instalments, payments), Route Master, Transport Fee, Disciplinary Fines, Salaries, Expenses and Budget are all fully real and tested end-to-end. Only manually-entered ledger transactions are still local-only.
 
 ---
 
@@ -282,8 +298,8 @@ Every write request is checked against these flags **on the server** (`accounts/
 3. As Viewer, try clicking anything that edits data — should show a "🔒 permission" toast, and the network tab (F12) should show `403` if it ever reaches the server
 4. Add a user as Admin, log out, log in as that user
 
-### Automated end-to-end test
-`e2e/test_module1.js` drives the **real** `index.html`/`script.js`/`api.js` (via [jsdom](https://github.com/jsdom/jsdom)) against a **running Django server**, and checks the results both in the simulated browser AND by querying the database fresh — so it can't be fooled by stale in-memory state.
+### Automated end-to-end tests
+`e2e/test_module1.js`, `e2e/test_module2.js` and `e2e/test_module3.js` each drive the **real** `index.html`/`script.js`/`api.js` (via [jsdom](https://github.com/jsdom/jsdom)) against a **running Django server**, and check the results both in the simulated browser AND by querying the database fresh — so they can't be fooled by stale in-memory state.
 
 ```bash
 # Terminal 1 — backend must be running on port 8020 for this test
@@ -294,11 +310,16 @@ python manage.py runserver 127.0.0.1:8020
 cd e2e
 npm install       # first time only — installs jsdom
 node test_module1.js
+node test_module2.js
+node test_module3.js
 ```
 
-Expected output ends with `FAIL: 0`. This test is safe to run repeatedly against the same database (it cleans up the test user it creates).
+Expected output ends with `FAIL: 0` for each. All three are safe to run repeatedly against the same database (each cleans up the E2E-prefixed records it creates).
 
-**Last verified run (real MySQL 8.0.46, Django 5.2, fresh + repeated runs):** `PASS: 32, FAIL: 0`, twice in a row against the same persistent database.
+**Last verified runs (real MySQL-compatible database, Django 5.2, fresh + repeated runs):**
+- `test_module1.js` — `PASS: 32, FAIL: 0`, twice in a row against the same persistent database.
+- `test_module2.js` — `PASS: 41, FAIL: 0`, twice in a row against the same persistent database.
+- `test_module3.js` — `PASS: 53, FAIL: 0`, twice in a row against the same persistent database. Covers Route Master, Transport Fee (assign, partial payment, full payment, the custom-route boundary), Disciplinary Fines (issue, mark paid, delete), Salaries (process, mark paid, duplicate-month rejection), Expense Categories + Expenses, Budget (including `spent` derived from a real linked Expense), and Viewer/Accountant permissions.
 
 ---
 
