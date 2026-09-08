@@ -53,12 +53,13 @@ Verified with `e2e/test_module3.js` — 53/53 pass against a real MySQL-compatib
 
 **One deliberate scope boundary**, same spirit as Module 2's Fee/Fine boundary: a Fine's auto-merge into a student's next Fee payment (`syncFeeForFine()` / `checkPendingFines()`) stays **local-only** — `'Fine'` still isn't a valid `Fee.category` on the backend. The Fine record itself (create/edit/delete/mark paid) is fully persisted; only the auto-generated "Paid via fine" Fee row used for the receipt/audit trail is local-only, exactly as before. Similarly, once a Transport Fee is meant to be saved to the database, its route **must** be picked from Route Master — the backend only has a `Route` foreign key, no free-text "custom route name" field, so the old type-your-own-route option no longer persists.
 
-### ⏳ Not yet connected — still local/in-memory only
-Add / Edit / Delete on this page currently only changes what you see in the browser tab; **refreshing the page reloads the real database and discards the change**, the same way the old localStorage version reset if you cleared your browser data:
+### ✅ Manual Transactions — done, tested against a real MySQL database
+- **Add / Delete** of misc ledger entries (donations, refunds, bank corrections) not tied to a Fee/Salary/Expense record, persisted to the database — no Edit in the original UI either, so none was added here
+- Feeds into the unified Transactions ledger exactly like every other source (`buildTx()`), with the ISO date format that every other ledger row already used — the original local-only code was the one inconsistency, reformatting its own date to a locale string while every other row stayed ISO
 
-- Manual ledger transactions (the "+ Add Transaction" button on the Transactions page). A `/finance/manual-transactions/` endpoint already exists on the backend for a future pass — it just wasn't part of Modules 1–3.
+Verified with `e2e/test_module4.js` — 20/20 pass against a real MySQL-compatible database, twice in a row with no reset in between, covering create/delete, the ledger merge, client + server-side validation (blank description, zero amount), and role permissions — including that `deleteManualTx()` requires `'canDelete'` (unlike Module 3's five `'canEdit'`-gated deletes), so Accountant can create a manual transaction but cannot delete one, matching `ManualTransactionViewSet`'s existing (and correct) `RolePermission`.
 
-**What this means for you today:** Login, roles, user management, Students, Fees (scholarships, concessions, instalments, payments), Route Master, Transport Fee, Disciplinary Fines, Salaries, Expenses and Budget are all fully real and tested end-to-end. Only manually-entered ledger transactions are still local-only.
+**What this means for you today:** every module originally scoped for this app — Login/Roles/Users, Students/Fees, Transport/Fines/Salaries/Expenses/Budget, and Manual Transactions — is fully real and tested end-to-end. Nothing is local-only anymore.
 
 ---
 
@@ -299,7 +300,7 @@ Every write request is checked against these flags **on the server** (`accounts/
 4. Add a user as Admin, log out, log in as that user
 
 ### Automated end-to-end tests
-`e2e/test_module1.js`, `e2e/test_module2.js` and `e2e/test_module3.js` each drive the **real** `index.html`/`script.js`/`api.js` (via [jsdom](https://github.com/jsdom/jsdom)) against a **running Django server**, and check the results both in the simulated browser AND by querying the database fresh — so they can't be fooled by stale in-memory state.
+`e2e/test_module1.js`, `e2e/test_module2.js`, `e2e/test_module3.js` and `e2e/test_module4.js` each drive the **real** `index.html`/`script.js`/`api.js` (via [jsdom](https://github.com/jsdom/jsdom)) against a **running Django server**, and check the results both in the simulated browser AND by querying the database fresh — so they can't be fooled by stale in-memory state.
 
 ```bash
 # Terminal 1 — backend must be running on port 8020 for this test
@@ -312,14 +313,16 @@ npm install       # first time only — installs jsdom
 node test_module1.js
 node test_module2.js
 node test_module3.js
+node test_module4.js
 ```
 
-Expected output ends with `FAIL: 0` for each. All three are safe to run repeatedly against the same database (each cleans up the E2E-prefixed records it creates).
+Expected output ends with `FAIL: 0` for each. All four are safe to run repeatedly against the same database (each cleans up the E2E-prefixed records it creates).
 
 **Last verified runs (real MySQL-compatible database, Django 5.2, fresh + repeated runs):**
 - `test_module1.js` — `PASS: 32, FAIL: 0`, twice in a row against the same persistent database.
 - `test_module2.js` — `PASS: 41, FAIL: 0`, twice in a row against the same persistent database.
 - `test_module3.js` — `PASS: 53, FAIL: 0`, twice in a row against the same persistent database. Covers Route Master, Transport Fee (assign, partial payment, full payment, the custom-route boundary), Disciplinary Fines (issue, mark paid, delete), Salaries (process, mark paid, duplicate-month rejection), Expense Categories + Expenses, Budget (including `spent` derived from a real linked Expense), and Viewer/Accountant permissions.
+- `test_module4.js` — `PASS: 20, FAIL: 0`, twice in a row against the same persistent database. Covers Manual Transactions create/delete, the ledger merge, validation, and Viewer/Accountant permissions.
 
 ---
 

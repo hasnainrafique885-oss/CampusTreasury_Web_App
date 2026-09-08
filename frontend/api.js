@@ -56,10 +56,11 @@
            record is meant to be saved to the database.
 
    NOT yet in scope (still local-only / in-memory):
-     ⏳ Manual ledger transactions (the "+ Add Transaction" button on
-        the Transactions page) — a `/finance/manual-transactions/`
-        endpoint exists on the backend but wasn't part of this pass;
-        every other module above is fully wired.
+     — nothing. Manual Transactions (below) closes out the last gap.
+
+   Manual Transactions:
+     ✅ Add / Delete persisted to the database (no Edit in the original
+        UI either, so none added here)
 
    This file is loaded AFTER script.js. It works by re-declaring a
    handful of the same top-level `function name(){...}` names — in
@@ -249,6 +250,21 @@ function apiExpenseCategoryToD(c) {
   return { name: c.name, icon: c.icon || '📦', color: c.color || '#6b7280', budget: Number(c.budget) || 0, _pk: c.id };
 }
 
+function apiManualTxToD(m) {
+  return {
+    // 'MAN-00042' style id, matching the TXN-/SAL-/etc. prefix convention
+    // used for every other D.tx row; deleteManualTx(t.id) looks this up.
+    id: 'MAN-' + String(m.id).padStart(5, '0'),
+    desc: m.description, type: m.type, amt: Number(m.amount) || 0,
+    // Kept as the backend's ISO date, matching every other ledger source
+    // (fee/salary/expense/transport-fee entries in buildTx() are already
+    // ISO) — the original local-only code alone reformatted this to a
+    // locale display string, which was the odd one out.
+    date: m.date, cat: m.category || (m.type === 'Income' ? 'Other Income' : 'Other'),
+    srcType: 'manual', _pk: m.id,
+  };
+}
+
 function apiExpenseToD(e) {
   return {
     desc: e.description, cat: e.category_name, amt: Number(e.amount) || 0,
@@ -338,13 +354,14 @@ async function loadAllDataFromAPI() {
   const rollByStudentPk = {};
   studentsRaw.forEach(s => { rollByStudentPk[s.id] = s.roll_no; });
 
-  const [feesRaw, tfRaw, salariesRaw, expensesRaw, budgetsRaw, finesRaw] = await Promise.all([
+  const [feesRaw, tfRaw, salariesRaw, expensesRaw, budgetsRaw, finesRaw, manualTxRaw] = await Promise.all([
     fetchAllPages('/finance/fees/'),
     fetchAllPages('/finance/transport-fees/'),
     fetchAllPages('/finance/salaries/'),
     fetchAllPages('/finance/expenses/'),
     fetchAllPages('/finance/budgets/'),
     fetchAllPages('/finance/fines/'),
+    fetchAllPages('/finance/manual-transactions/'),
   ]);
 
   const catNameById = {};
@@ -369,6 +386,7 @@ async function loadAllDataFromAPI() {
   D.budget = budgetsRaw.map(b => apiBudgetToD(b, catNameById));
   D.fines = finesRaw.map(f => apiFineToD(f, rollByStudentPk));
   D.routes = routesRaw.map(apiRouteToD);
+  D.manualTx = manualTxRaw.map(apiManualTxToD);
   D.settings = Object.assign({}, D.settings, apiSettingsToD(settingsRaw));
 
   try { buildTx(); } catch (e) { console.warn('buildTx after API load failed:', e); }
@@ -1060,7 +1078,10 @@ function pkForExpCategoryName(name) {
    (nothing in this section writes to Students) — the roll lookup below
    reads whatever D.students already holds. */
 async function refreshModule3Finance() {
-  const [routesRaw, tfRaw, finesRaw, salariesRaw, catsRaw, expensesRaw, budgetsRaw] = await Promise.all([
+  // Name kept as "Module3" for call-site continuity even though this now
+  // also covers Manual Transactions (added in a later pass) — it's really
+  // "refresh everything on the finance app except Fees".
+  const [routesRaw, tfRaw, finesRaw, salariesRaw, catsRaw, expensesRaw, budgetsRaw, manualTxRaw] = await Promise.all([
     fetchAllPages('/finance/routes/'),
     fetchAllPages('/finance/transport-fees/'),
     fetchAllPages('/finance/fines/'),
@@ -1068,6 +1089,7 @@ async function refreshModule3Finance() {
     fetchAllPages('/finance/expense-categories/'),
     fetchAllPages('/finance/expenses/'),
     fetchAllPages('/finance/budgets/'),
+    fetchAllPages('/finance/manual-transactions/'),
   ]);
   const rollByStudentPk = {};
   D.students.forEach(s => { rollByStudentPk[s._pk] = s.roll; });
@@ -1083,6 +1105,7 @@ async function refreshModule3Finance() {
   D.expCategories = catsRaw.map(apiExpenseCategoryToD);
   D.expenses = expensesRaw.map(apiExpenseToD);
   D.budget = budgetsRaw.map(b => apiBudgetToD(b, catNameById));
+  D.manualTx = manualTxRaw.map(apiManualTxToD);
 
   try { buildTx(); } catch (e) { console.warn('buildTx after Module 3 refresh failed:', e); }
 }
@@ -1585,3 +1608,51 @@ async function confirmDelBud(i) {
   showMo('delBud');
 }
 function delBud(i) { confirmDelBud(i); }
+
+/* ══════════════════════════════════════════════════════════════════
+   MANUAL TRANSACTIONS — misc ledger entries not tied to a fee/salary/
+   expense record (donations, refunds, bank corrections). Wired last
+   since it was explicitly out of scope for Modules 1–3.
+   ══════════════════════════════════════════════════════════════════ */
+
+async function saveManualTx() {
+  if (!requirePerm('canEdit', 'add transaction')) return;
+  const d = $('mtd').value.trim(); const a = $('mta').value.trim();
+  if (!d || !a) { toast('Description and Amount are required'); return; }
+  const amtVal = parseInt(a);
+  if (isNaN(amtVal) || amtVal <= 0) { toast('Please enter a valid amount greater than 0'); return; }
+  const type = $('mtt').value;
+  const dateVal = $('mtdt').value || isoDate();
+  const cat = $('mtc').value.trim() || (type === 'Income' ? 'Other Income' : 'Other');
+
+  const payload = { description: d, type, amount: amtVal, date: dateVal, category: cat };
+
+  try {
+    await apiFetch('/finance/manual-transactions/', { method: 'POST', body: JSON.stringify(payload) });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  auditLog('action', 'Manual transaction added: ' + d + ' (' + type + ', Rs ' + fmt(amtVal) + ')');
+  await refreshModule3Finance();
+  rTx(); rDash(); closeMo('addTx');
+  toast('✅ Transaction added!');
+}
+
+async function deleteManualTx(id) {
+  const m = D.manualTx.find(x => x.id === id);
+  if (!m) return;
+  if (!requirePerm('canDelete', 'delete transaction')) return;
+  if (!confirm('Delete this manual transaction? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/finance/manual-transactions/${m._pk}/`, { method: 'DELETE' });
+  } catch (e) {
+    toast('❌ ' + e.message);
+    return;
+  }
+  auditLog('action', 'Manual transaction deleted: ' + m.desc);
+  await refreshModule3Finance();
+  rTx(); rDash(); closeMo('viewTx');
+  toast('🗑️ Transaction deleted');
+}
