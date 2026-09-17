@@ -3489,14 +3489,19 @@ function saveFine(){
   const status=$('fn-status').value;
   if(isEdit){
     const fineId=D.fines[editIdx].fineId||('FIN-'+(++D.seq.fine));
-    const f={fineId:fineId,student:stuName,roll:stuRoll,reason:reason,amt:amt,date:date,status:status};
+    // Preserve which voucher (if any) already claimed this fine — see
+    // getVoucherFines — so editing a fine's reason/amount doesn't reset its
+    // claim and let it re-attach to a different voucher than the one that
+    // already printed/shows it.
+    const linkedFeeChallan=D.fines[editIdx].linkedFeeChallan||null;
+    const f={fineId:fineId,student:stuName,roll:stuRoll,reason:reason,amt:amt,date:date,status:status,linkedFeeChallan:linkedFeeChallan};
     D.fines[editIdx]=f;
     syncFeeForFine(f);
     auditLog('action','Fine updated: '+stuName+' — '+reason);
     toast('✅ Fine updated');
   } else {
     const fineId='FIN-'+(++D.seq.fine);
-    const f={fineId:fineId,student:stuName,roll:stuRoll,reason:reason,amt:amt,date:date,status:status};
+    const f={fineId:fineId,student:stuName,roll:stuRoll,reason:reason,amt:amt,date:date,status:status,linkedFeeChallan:null};
     D.fines.push(f);
     syncFeeForFine(f);
     auditLog('action','Fine issued: '+stuName+' — '+reason+' (Rs '+amt+')');
@@ -3567,6 +3572,31 @@ function syncFineFromFee(feeRecord){
 // collect.
 function checkPendingFines(roll){
   const list=D.fines.filter(x=>x.roll===roll&&x.status==='Pending');
+  const sum=list.reduce((a,b)=>a+b.amt,0);
+  return {sum,list};
+}
+
+// Used when PRINTING a fee voucher (printVoucher). A student can have more
+// than one open fee record at once (e.g. a locked instalment plan plus a
+// separately-created Lab Fee charge — instalment plans are never merged
+// into, see getBulkFeeMergeTarget above). Without this, every open voucher
+// independently re-queried "all pending fines for this roll" and each one
+// showed the SAME disciplinary fine in its own total — so printing two open
+// vouchers for one student could double-count (or worse) a single fine.
+// Instead, a pending fine is claimed by whichever open voucher is printed
+// FIRST (stamped with that voucher's challan number via linkedFeeChallan) and
+// from then on only reappears on THAT voucher's re-prints. If the student had
+// no open voucher yet when the fine was issued, it stays unclaimed until the
+// next voucher for them is generated/printed, which then claims it.
+function getVoucherFines(f){
+  const rollFines = D.fines.filter(x=>x.roll===f.roll && x.status==='Pending');
+  const already   = rollFines.filter(x=>x.linkedFeeChallan===f.challanNo);
+  const unclaimed = rollFines.filter(x=>!x.linkedFeeChallan);
+  if(unclaimed.length){
+    unclaimed.forEach(x=>{ x.linkedFeeChallan=f.challanNo; });
+    try{saveData();}catch(e){}
+  }
+  const list=[...already,...unclaimed];
   const sum=list.reduce((a,b)=>a+b.amt,0);
   return {sum,list};
 }
@@ -6625,7 +6655,7 @@ function printVoucher(idx){
   const alreadyPaid = feePaidAmt(f);
   const stillOwed = feeRemainingAmt(f);
   const voucherLateFee = (feeSt.indexOf('Overdue')>=0 && !f.lateFeeApplied) ? suggestedLateFee(stillOwed||f.amt) : 0;
-  const voucherFines = checkPendingFines(f.roll); // {sum, list}
+  const voucherFines = getVoucherFines(f); // {sum, list} — claims fines so they don't double-count across a student's other open vouchers
   const extraChargesTotal = voucherLateFee + voucherFines.sum;
   // What the student must actually hand over: the unpaid balance (NOT the full
   // billed amount — a part-payment may already be on record) plus the extras.
