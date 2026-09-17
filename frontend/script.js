@@ -7030,6 +7030,7 @@ function printVoucher(idx){
       <div style="font-size:11.5px;font-weight:800;color:${brandDeep};line-height:1.2">${D.settings.instName||''}</div>
       <div style="font-size:7px;color:#64748b">${D.settings.city||''} · AY ${academicYear}</div>
     </div>
+    <div class="qr-slot" data-qr="${qrPayload}" style="width:38px;height:38px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px;flex-wrap:wrap">
     <span style="background:${stripeSoft};color:${stripeClr};font-size:7.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:10px;text-transform:uppercase">${copyLabel}</span>
@@ -7064,11 +7065,6 @@ function printVoucher(idx){
   </table>
 
   <div style="font-size:7.5px;color:#64748b;margin-bottom:9px">Issued ${todayFmt} · Due <strong style="color:${isOverdue?'#b91c1c':'#0f172a'}">${dueFmt}</strong> · Expires ${expiryFmt}</div>
-
-  <!-- QR -->
-  <div style="text-align:center;margin-bottom:9px">
-    <div class="qr-slot" data-qr="${qrPayload}" style="width:44px;height:44px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin:0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
-  </div>
 
   <!-- PAYMENT INSTRUCTIONS -->
   <div style="background:#f8fafc;border-radius:8px;padding:8px 9px;margin-bottom:9px">
@@ -7288,6 +7284,7 @@ function printTransportVoucher(idx, mode){
       <div style="font-size:11.5px;font-weight:800;color:${brandDeep};line-height:1.2">${D.settings.instName||''}</div>
       <div style="font-size:7px;color:#64748b">${D.settings.city||''} · AY ${academicYear}</div>
     </div>
+    <div class="qr-slot" data-qr="${qrPayload}" style="width:38px;height:38px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px;flex-wrap:wrap">
     <span style="background:${stripeSoft};color:${stripeClr};font-size:7.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:10px;text-transform:uppercase">${copyLabel}</span>
@@ -7322,10 +7319,6 @@ function printTransportVoucher(idx, mode){
   </table>
 
   <div style="font-size:7.5px;color:#64748b;margin-bottom:9px">Issued ${todayFmt} · Due <strong style="color:${isOverdue?'#b91c1c':'#0f172a'}">${dueFmt}</strong></div>
-
-  <div style="text-align:center;margin-bottom:9px">
-    <div class="qr-slot" data-qr="${qrPayload}" style="width:44px;height:44px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;margin:0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
-  </div>
 
   <div style="background:#f8fafc;border-radius:8px;padding:8px 9px;margin-bottom:9px">
     <div style="font-size:7px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${stripeClr};margin-bottom:4px">Payment Instructions</div>
