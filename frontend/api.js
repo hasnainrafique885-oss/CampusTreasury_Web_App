@@ -1656,3 +1656,158 @@ async function deleteManualTx(id) {
   rTx(); rDash(); closeMo('viewTx');
   toast('🗑️ Transaction deleted');
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   SETTINGS — overrides saveInstitutionSettings / saveFeeConfigSettings /
+   saveBankSettings / saveInstructionsSettings / saveSecuritySettings
+   from script.js.
+
+   Those originals only wrote to D.settings + localStorage (via
+   auditLog()'s autosave) — never to the backend. Since loadAllDataFromAPI()
+   re-fetches /finance/settings/ on every login and overwrites D.settings
+   with it (apiSettingsToD, above), any change made through the old
+   versions looked saved (toast + updated UI) but reverted on the next
+   login/refresh because the database copy was never touched. These
+   versions keep the exact same validation/behaviour as the originals,
+   just add the PATCH call that actually persists it.
+   ══════════════════════════════════════════════════════════════════ */
+
+// D.settings camelCase -> backend snake_case, reverse of apiSettingsToD.
+const _SETTINGS_FIELD_MAP = {
+  instName: 'inst_name', city: 'city', academicYear: 'academic_year_label',
+  adminEmail: 'admin_email', contact: 'contact', address: 'address',
+  lateFeePct: 'late_fee_pct', feeDueDay: 'fee_due_day',
+  sessionTimeoutMin: 'session_timeout_min',
+  bankName: 'bank_name', bankBranch: 'bank_branch', bankAccountTitle: 'bank_account_title',
+  bankAccountNo: 'bank_account_no', bankIBAN: 'bank_iban',
+  bankJazzCash: 'bank_jazzcash', bankEasyPaisa: 'bank_easypaisa',
+  accountsPhone: 'accounts_phone', officeHours: 'office_hours',
+  customerCode: 'customer_code', voucherPrefix: 'voucher_prefix',
+  voucherInstructions: 'voucher_instructions',
+};
+
+async function apiSaveSettings(partialDSettings) {
+  const payload = {};
+  Object.keys(partialDSettings).forEach(k => {
+    if (_SETTINGS_FIELD_MAP[k]) payload[_SETTINGS_FIELD_MAP[k]] = partialDSettings[k];
+  });
+  await apiFetch('/finance/settings/', { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+async function saveInstitutionSettings() {
+  if (!requirePerm('canEdit', 'update settings')) return;
+  const name = $('st-instName').value.trim();
+  const city = $('st-city').value.trim();
+  const year = $('st-year').value.trim();
+  const email = $('st-email').value.trim();
+  if (!name) { toast('❌ Institution Name is required'); return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('❌ Enter a valid admin email'); return; }
+  const patch = {
+    instName: name || D.settings.instName,
+    city: city || D.settings.city,
+    academicYear: year || D.settings.academicYear,
+    adminEmail: email,
+    contact: $('st-contact').value.trim(),
+    address: $('st-address').value.trim(),
+  };
+  try {
+    await apiSaveSettings(patch);
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+  Object.assign(D.settings, patch);
+  applyInstBranding();
+  auditLog('change', 'Institution settings updated: ' + name);
+  toast('✅ Settings saved! Applied across the whole system.');
+}
+
+async function saveFeeConfigSettings() {
+  if (!requirePerm('canEdit', 'update fee configuration')) return;
+  const inputs = document.querySelectorAll('#st-fee-container [data-fee-program]');
+  const vals = {};
+  let invalid = false;
+  inputs.forEach(inp => {
+    const v = parseInt(inp.value);
+    if (isNaN(v) || v < 0) invalid = true;
+    vals[inp.dataset.feeProgram] = v;
+  });
+  if (invalid) { toast('❌ Please enter valid, non-negative fee amounts'); return; }
+  const latePct = parseInt($('st-latepct').value), dueDay = parseInt($('st-dueday').value);
+  if (isNaN(latePct) || latePct < 0 || latePct > 100) { toast('❌ Late Fee Penalty must be between 0–100%'); return; }
+  if (isNaN(dueDay) || dueDay < 1 || dueDay > 28) { toast('❌ Fee Due Day must be between 1–28'); return; }
+
+  const affectedClasses = D.classes.filter(c => Object.prototype.hasOwnProperty.call(vals, c.name)).length;
+  if (!confirm('This will update fees for ' + affectedClasses + ' class section(s) across all Boys & Girls campuses, and apply the new late fee rules. Existing paid/pending fee records will not change. Continue?')) return;
+
+  try {
+    await apiSaveSettings({ lateFeePct: latePct, feeDueDay: dueDay });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+
+  let updatedClasses = 0;
+  D.classes.forEach(c => {
+    if (Object.prototype.hasOwnProperty.call(vals, c.name)) { c.fee = vals[c.name]; updatedClasses++; }
+  });
+  D.settings.lateFeePct = latePct;
+  D.settings.feeDueDay = dueDay;
+
+  auditLog('change', 'Fee configuration updated (' + updatedClasses + ' class sections affected)');
+  toast('✅ Fee config saved! Updated ' + updatedClasses + ' class section(s).');
+  try { rClasses(); } catch (e) {}
+  try { rFees(); } catch (e) {}
+}
+
+async function saveBankSettings() {
+  if (!requirePerm('canEdit', 'update bank/payment settings')) return;
+  const patch = {
+    bankName: $('st-bankName').value.trim(),
+    bankBranch: $('st-bankBranch').value.trim(),
+    bankAccountTitle: $('st-bankAccountTitle').value.trim(),
+    bankAccountNo: $('st-bankAccountNo').value.trim(),
+    bankIBAN: $('st-bankIBAN').value.trim(),
+    customerCode: $('st-customerCode').value.trim(),
+    voucherPrefix: $('st-voucherPrefix').value.trim() || 'FEE',
+  };
+  try {
+    await apiSaveSettings(patch);
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+  Object.assign(D.settings, patch);
+  auditLog('change', 'Bank / online payment settings updated');
+  toast('✅ Bank details saved! Will appear on the next voucher printed.');
+}
+
+async function saveInstructionsSettings() {
+  if (!requirePerm('canEdit', 'update payment instructions')) return;
+  const lines = $('st-voucherInstructions').value.split('\n').map(l => l.trim()).filter(l => l);
+  if (!lines.length) { toast('❌ Add at least one instruction'); return; }
+  try {
+    await apiSaveSettings({ voucherInstructions: lines });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+  D.settings.voucherInstructions = lines;
+  auditLog('change', 'Voucher payment instructions updated');
+  toast('✅ Payment instructions saved! Will appear on the next voucher printed.');
+}
+
+async function saveSecuritySettings() {
+  if (!requirePerm('canEdit', 'update security settings')) return;
+  const mins = parseInt($('st-sesstimeout').value);
+  if (isNaN(mins) || mins < 1 || mins > 120) { toast('❌ Auto-Lock timeout must be between 1–120 minutes'); return; }
+  try {
+    await apiSaveSettings({ sessionTimeoutMin: mins });
+  } catch (e) {
+    toast('❌ ' + (e.data ? JSON.stringify(e.data) : e.message));
+    return;
+  }
+  D.settings.sessionTimeoutMin = mins;
+  auditLog('change', 'Security settings updated: auto-lock set to ' + mins + ' minute(s)');
+  toast('✅ Security settings saved!');
+}

@@ -6675,6 +6675,23 @@ function printVoucher(idx){
   const voucherRelief = feeDiscountAmt(f);
   const baseComponentAmt = feeGrossAmt(f) - appliedLateFeeAmt - mergedExtraFeesTotal;
 
+  // DENSE MODE — with a lot of merged fees/fines/discounts, the fee-breakdown
+  // table grows tall enough to push the 3-copy column onto a 2nd printed
+  // page. Rather than letting that happen, count how many line rows the
+  // table will actually have and, past a threshold, use a tighter spacing
+  // scale everywhere in the column (row padding, block margins, line-height)
+  // so everything still fits on the single A4-landscape page.
+  const feeRowCount = 1 + mergedExtraFees.length
+    + (appliedLateFeeAmt>0?1:0) + (feeScholarshipAmt(f)>0?1:0)
+    + (feeConcessionAmt(f)>0?1:0) + (voucherLateFee>0?1:0)
+    + voucherFines.list.length + (alreadyPaid>0?1:0);
+  const isDense = feeRowCount > 5;
+  const sp = isDense
+    ? { rowPad:'2px 5px', rowFont:'7px', blockPad:'6px 8px', blockGap:'6px', lh:'1.35',
+        infoFont:'7.5px', hdrGap:'5px', hdrMb:'6px', sigGap:'5px', sigLine:'10px', footMt:'6px' }
+    : { rowPad:'4px 6px', rowFont:'8px', blockPad:'8px 9px', blockGap:'9px', lh:'1.7',
+        infoFont:'8.5px', hdrGap:'7px', hdrMb:'9px', sigGap:'9px', sigLine:'14px', footMt:'9px' };
+
   // Label for the base row — once extraFees exist, f.category has already
   // been overwritten with the merged/concatenated string (e.g. "Lab Fee"),
   // so it can no longer be trusted as the base fee's name. Use the
@@ -7054,7 +7071,7 @@ function printVoucher(idx){
     return `
 <div class="col">
   <!-- HEADER -->
-  <div style="display:flex;align-items:center;gap:7px;border-bottom:2px solid ${brand};padding-bottom:7px;margin-bottom:9px">
+  <div style="display:flex;align-items:center;gap:${sp.hdrGap};border-bottom:2px solid ${brand};padding-bottom:${sp.hdrGap};margin-bottom:${sp.hdrMb}">
     <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,${brandDeep},${brand});display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden">${getLogoBadgeInner()}</div>
     <div style="min-width:0;flex:1">
       <div style="font-size:11.5px;font-weight:800;color:${brandDeep};line-height:1.2">${D.settings.instName||''}</div>
@@ -7062,16 +7079,16 @@ function printVoucher(idx){
     </div>
     <div class="qr-slot" data-qr="${qrPayload}" style="width:38px;height:38px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
   </div>
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:${sp.hdrMb};flex-wrap:wrap">
     <span style="background:${stripeSoft};color:${stripeClr};font-size:7.5px;font-weight:800;letter-spacing:.6px;padding:3px 8px;border-radius:10px;text-transform:uppercase">${copyLabel}</span>
     <span style="background:#f1f5f9;color:#475569;font-size:7px;font-weight:700;letter-spacing:.4px;padding:3px 7px;border-radius:10px;text-transform:uppercase">${docKind}</span>
     ${vchStatusBadge(feeSt,{size:7,pad:'2px 7px'})}
   </div>
 
   <!-- STUDENT INFO -->
-  <div style="background:#f8fafc;border-radius:8px;padding:8px 9px;margin-bottom:9px">
+  <div style="background:#f8fafc;border-radius:8px;padding:${sp.blockPad};margin-bottom:${sp.blockGap}">
     <div style="font-size:7px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${stripeClr};margin-bottom:5px">Student Information</div>
-    <table style="width:100%;border-collapse:collapse;font-size:8.5px">
+    <table style="width:100%;border-collapse:collapse;font-size:${sp.infoFont}">
       <tr><td style="color:#94a3b8;padding:1.5px 0;width:38%">Name</td><td style="font-weight:700;color:#0f172a">${stu.name}</td></tr>
       <tr><td style="color:#94a3b8;padding:1.5px 0">Roll No.</td><td style="font-weight:700;color:${stripeClr}">${stu.roll}</td></tr>
       <tr><td style="color:#94a3b8;padding:1.5px 0">Father</td><td style="color:#334155">${stu.father||'—'}</td></tr>
@@ -7083,23 +7100,23 @@ function printVoucher(idx){
 
   <!-- FEE BREAKDOWN — styled like Transport's Charge & Payment Summary table -->
   <div style="font-size:7px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${stripeClr};margin-bottom:5px">Fee Breakdown</div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:9px;font-size:8px">
+  <table style="width:100%;border-collapse:collapse;margin-bottom:${sp.blockGap};font-size:${sp.rowFont}">
     <thead><tr style="background:#f8fafc">
       <th style="padding:4px 6px;border:1px solid #e2e8f0;font-size:6.5px;text-transform:uppercase;color:#64748b;text-align:left">Fee Component</th>
       <th style="padding:4px 6px;border:1px solid #e2e8f0;font-size:6.5px;text-transform:uppercase;color:#64748b;text-align:right">Amount</th>
     </tr></thead>
     <tbody>
       ${instBreakdownRowsCompact}
-      <tr><td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:800;color:${brandDeep};background:${stripeSoft}">${totalRowLabel}</td><td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:800;color:${brandDeep};background:${stripeSoft}">Rs ${grandTotal.toLocaleString()}</td></tr>
+      <tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;font-weight:800;color:${brandDeep};background:${stripeSoft}">${totalRowLabel}</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:800;color:${brandDeep};background:${stripeSoft}">Rs ${grandTotal.toLocaleString()}</td></tr>
     </tbody>
   </table>
 
-  <div style="font-size:7.5px;color:#64748b;margin-bottom:9px">Issued ${todayFmt} · Due <strong style="color:${isOverdue?'#b91c1c':'#0f172a'}">${dueFmt}</strong> · Expires ${expiryFmt}</div>
+  <div style="font-size:7.5px;color:#64748b;margin-bottom:${sp.blockGap}">Issued ${todayFmt} · Due <strong style="color:${isOverdue?'#b91c1c':'#0f172a'}">${dueFmt}</strong> · Expires ${expiryFmt}</div>
 
   <!-- PAYMENT INSTRUCTIONS -->
-  <div style="background:#f8fafc;border-radius:8px;padding:8px 9px;margin-bottom:9px">
+  <div style="background:#f8fafc;border-radius:8px;padding:${sp.blockPad};margin-bottom:${sp.blockGap}">
     <div style="font-size:7px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${stripeClr};margin-bottom:4px">Payment Instructions</div>
-    <div style="font-size:7.5px;color:#475569;line-height:1.7">
+    <div style="font-size:7.5px;color:#475569;line-height:${sp.lh}">
       Pay on/before due date. <span style="color:#dc2626;font-weight:700">Late fee ${D.settings.lateFeePct||0}%</span> after due date.<br>
       Present at Accounts Office / Bank.<br>
       Queries: <strong>${D.settings.accountsPhone||D.settings.contact||'—'}</strong>
@@ -7107,9 +7124,9 @@ function printVoucher(idx){
   </div>
 
   <!-- BANK INFO — narrow column version -->
-  <div style="background:${stripeSoft};border-radius:8px;padding:8px 9px;margin-bottom:11px">
+  <div style="background:${stripeSoft};border-radius:8px;padding:${sp.blockPad};margin-bottom:${sp.hdrMb}">
     <div style="font-size:7px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:${stripeClr};margin-bottom:4px">Bank / Online Payment</div>
-    <div style="font-size:7.5px;color:#334155;line-height:1.7">
+    <div style="font-size:7.5px;color:#334155;line-height:${sp.lh}">
       ${D.settings.bankName?`<strong>${D.settings.bankName}</strong>${D.settings.bankBranch?' — '+D.settings.bankBranch:''}<br>`:''}
       ${D.settings.bankAccountTitle||D.settings.instName?'A/C: <strong>'+(D.settings.bankAccountTitle||D.settings.instName)+'</strong><br>':''}
       ${D.settings.bankAccountNo?'A/C No: <strong>'+D.settings.bankAccountNo+'</strong><br>':''}
@@ -7121,13 +7138,13 @@ function printVoucher(idx){
   </div>
 
   <!-- SIGNATURES — stacked, narrow -->
-  <div style="display:flex;flex-direction:column;gap:9px">
+  <div style="display:flex;flex-direction:column;gap:${sp.sigGap}">
     <div style="text-align:center">
-      <div style="border-bottom:1px solid #cbd5e1;height:14px"></div>
+      <div style="border-bottom:1px solid #cbd5e1;height:${sp.sigLine}"></div>
       <div style="font-size:6px;color:#94a3b8;text-transform:uppercase;margin-top:2px">Student / Parent Signature</div>
     </div>
     <div style="text-align:center">
-      <div style="border-bottom:1px dashed #cbd5e1;height:14px"></div>
+      <div style="border-bottom:1px dashed #cbd5e1;height:${sp.sigLine}"></div>
       <div style="font-size:6px;color:#94a3b8;text-transform:uppercase;margin-top:2px">Accounts Officer / Cashier</div>
     </div>
     <div style="text-align:center">
@@ -7136,33 +7153,35 @@ function printVoucher(idx){
     </div>
   </div>
 
-  <div style="margin-top:9px;font-size:6px;color:#94a3b8;text-align:center">Generated ${todayFmt} · ${voucherNo}</div>
+  <div style="margin-top:${sp.footMt};font-size:6px;color:#94a3b8;text-align:center">Generated ${todayFmt} · ${voucherNo}</div>
 </div>`;
   };
 
   // Same row-building as instBreakdownRows above, but with the narrower font
   // sizes/padding this 3-column layout needs (icons kept, wording shortened).
-  let instBreakdownRowsCompact = `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#334155">${baseLabel}${f.instPart?' — Inst. '+f.instPart:''}</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f2747">${baseComponentAmt.toLocaleString()}</td></tr>`;
+  // Row padding/font also shrinks in dense mode (see `sp` above) so a voucher
+  // with many merged fees/fines/discounts still fits on one printed page.
+  let instBreakdownRowsCompact = `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#334155">${baseLabel}${f.instPart?' — Inst. '+f.instPart:''}</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#0f2747">${baseComponentAmt.toLocaleString()}</td></tr>`;
   mergedExtraFees.forEach(ex=>{
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#2563eb">📦 ${ex.category}</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#2563eb">${(ex.grossAmt||ex.amt||0).toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#2563eb">📦 ${ex.category}</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#2563eb">${(ex.grossAmt||ex.amt||0).toLocaleString()}</td></tr>`;
   });
   if(appliedLateFeeAmt>0){
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#b91c1c">⚠ Late Fee (${D.settings.lateFeePct}%)</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${appliedLateFeeAmt.toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#b91c1c">⚠ Late Fee (${D.settings.lateFeePct}%)</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${appliedLateFeeAmt.toLocaleString()}</td></tr>`;
   }
   if(feeScholarshipAmt(f)>0){
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#15803d">🎓 Less — ${f.scholarshipLabel||'Scholarship'}</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${feeScholarshipAmt(f).toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#15803d">🎓 Less — ${f.scholarshipLabel||'Scholarship'}</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${feeScholarshipAmt(f).toLocaleString()}</td></tr>`;
   }
   if(feeConcessionAmt(f)>0){
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#15803d">🎓 Less — Concession</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${feeConcessionAmt(f).toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#15803d">🎓 Less — Concession</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${feeConcessionAmt(f).toLocaleString()}</td></tr>`;
   }
   if(voucherLateFee>0){
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#b91c1c">⚠ Late Fee (Overdue)</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${voucherLateFee.toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#b91c1c">⚠ Late Fee (Overdue)</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${voucherLateFee.toLocaleString()}</td></tr>`;
   }
   voucherFines.list.forEach(fine=>{
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#b91c1c">🚨 Fine — ${fine.reason}</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${fine.amt.toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#b91c1c">🚨 Fine — ${fine.reason}</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#b91c1c">${fine.amt.toLocaleString()}</td></tr>`;
   });
   if(alreadyPaid>0){
-    instBreakdownRowsCompact += `<tr><td style="padding:4px 6px;border:1px solid #e2e8f0;color:#15803d">✔ Already Received</td><td style="padding:4px 6px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${alreadyPaid.toLocaleString()}</td></tr>`;
+    instBreakdownRowsCompact += `<tr><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;color:#15803d">✔ Already Received</td><td style="padding:${sp.rowPad};border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#15803d">− ${alreadyPaid.toLocaleString()}</td></tr>`;
   }
 
   const css = `
