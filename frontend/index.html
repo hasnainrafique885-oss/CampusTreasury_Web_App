@@ -86,16 +86,11 @@
         </div>
       </div>
 
-      <!-- DYNAMIC CREDENTIAL HINT -->
-      <div class="cred-pill" id="credHint">
-        💡 <span id="credText"><strong>admin</strong> / admin123</span>
-      </div>
-
       <div class="login-err" id="loginErr">❌ Wrong credentials — please try again</div>
       <div class="login-err" id="loginLockErr" style="display:none">🔒 Account locked after 5 failed attempts. Wait 30 seconds.</div>
 
-      <div class="fg"><label>User ID</label><input type="text" id="uid" value="admin" autocomplete="username"></div>
-      <div class="fg"><label>Password</label><input type="password" id="upass" value="admin123" autocomplete="current-password"></div>
+      <div class="fg"><label>User ID</label><input type="text" id="uid" autocomplete="username"></div>
+      <div class="fg"><label>Password</label><input type="password" id="upass" autocomplete="current-password"></div>
 
       <button class="btn-signin" onclick="doLogin()">Sign In →</button>
       <p class="lp-foot" id="brand-foot">Superior College · 2024–25 Academic Year</p>

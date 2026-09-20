@@ -602,23 +602,17 @@ function auditLog(type, action, overrideUser) {
 }
 
 // ── Role credentials map ──
-const ROLE_CREDS = {
-  admin:      {uid:'admin',       pass:'admin123', hint:'<strong>admin</strong> / admin123'},
-  accountant: {uid:'accountant',  pass:'acc123',   hint:'<strong>accountant</strong> / acc123'},
-  viewer:     {uid:'viewer',      pass:'view123',  hint:'<strong>viewer</strong> / view123'},
-};
-
 function selectRole(role) {
+  // NOTE: this only highlights which role card is selected — it used to
+  // also auto-fill the User ID/Password fields with hardcoded demo
+  // credentials (and show them in a hint pill), which is not appropriate
+  // once real accounts with real passwords are in use. The actual role a
+  // user gets is decided by the backend from their account, not by which
+  // card is highlighted here.
   Object.keys(ROLES).forEach(r => {
     const card = document.getElementById('rc-'+r);
     if(card) card.classList.toggle('active', r===role);
   });
-  const creds = ROLE_CREDS[role];
-  if(creds) {
-    if($('uid'))       $('uid').value              = creds.uid;
-    if($('upass'))     $('upass').value            = creds.pass;
-    if($('credText'))  $('credText').innerHTML      = creds.hint;
-  }
   if($('loginErr'))     $('loginErr').style.display='none';
   if($('loginLockErr')) $('loginLockErr').style.display='none';
 }

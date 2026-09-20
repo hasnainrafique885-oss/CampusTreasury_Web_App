@@ -502,6 +502,44 @@ async function doLogout() {
   const d = $('pg-dashboard'); if (d) d.classList.add('on');
 }
 
+// Overrides unlockSession() from script.js. The original compared the typed
+// password against SESSION.user.pass — a field that only ever existed in the
+// old local/demo user objects. The real, API-backed SESSION.user (built in
+// doLogin, above) never has a .pass field, so that comparison was always
+// false: the lock screen rejected every password, correct or not, until the
+// person gave up and refreshed the page (which drops the lock screen and
+// sends them back to the full login form, where doLogin() — a real API
+// call — naturally worked). This version re-checks the password the same
+// way a fresh login does: against the backend. A correct password also
+// quietly rotates in a fresh pair of tokens, so the unlocked session keeps
+// working normally afterwards.
+async function unlockSession() {
+  const passEl = $('lockpass'), errEl = $('lock-err');
+  const p = (passEl ? passEl.value : '').trim();
+  if (!SESSION.user || !p) return;
+  let data;
+  try {
+    data = await apiFetch('/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ username: SESSION.user.id, password: p }),
+    });
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.status === 423 ? '🔒 Too many attempts — please wait and try again' : '❌ Wrong password';
+      errEl.style.display = 'block';
+    }
+    if (passEl) { passEl.value = ''; passEl.focus(); }
+    return;
+  }
+  TOKS.access = data.access;
+  TOKS.refresh = data.refresh;
+  SESSION.lastActive = Date.now();
+  if (passEl) passEl.value = '';
+  if (errEl) errEl.style.display = 'none';
+  $('lockScreen').style.display = 'none';
+  auditLog('action', 'Session unlocked');
+}
+
 async function doChangePassword() {
   const oldp = $('cp-old').value.trim(), newp = $('cp-new').value.trim(), conf = $('cp-conf').value.trim();
   const err = $('cp-err');
